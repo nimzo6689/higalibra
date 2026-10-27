@@ -58,9 +58,9 @@ graph LR
             Job2 --> Job1
         end
 
-        Secret["Secrets Manager"]
-        Job1 --> Secret
-        Job2 --> Secret
+        ParameterStore["SSMパラメータストア"]
+        Job1 --> ParameterStore
+        Job2 --> ParameterStore
     end
 
     Job1 -- "Send Push" --> OSPush
@@ -167,7 +167,7 @@ Web Push 通知のサブスクリプションは DynamoDB に保存する。
     "lastUpdated": "<YYYY-MM-DDTHH:MM:SSZ>",
     "users": [
         {
-            "userId": "<FamilyMemberID>",
+            "cardNo": "<LibraryCardNumber>",
             "name": "<FamilyMemberName>",
             "borrowedBooks": [
                 {
@@ -197,7 +197,7 @@ Web Push 通知のサブスクリプションは DynamoDB に保存する。
 
 | ドキュメント ID | 属性 | 用途 |
 | --- | --- | --- |
-| `USER#<FamilyMemberID>#DEVICE#<DeviceID>` | `userId`, `deviceId`, `endpoint`, `keys`（p256dh, auth）, `updatedAt` | デバイスごとの Web Push 配信宛先 |
+| `USER#<LibraryCardNumber>#DEVICE#<DeviceID>` | `cardNo`, `deviceId`, `endpoint`, `keys`（p256dh, auth）, `updatedAt` | デバイスごとの Web Push 配信宛先 |
 
 ---
 

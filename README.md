@@ -51,4 +51,4 @@ AWS への初回セットアップ、GitHub Actions の設定、デプロイ手�
 
 ## 資格情報
 
-図書館のログイン情報や API キーなどの秘密情報は、リポジトリに登録せず、各環境の `.env` または AWS Secrets Manager で管理しています。
+図書館のログイン情報や API キーなどの秘密情報は、リポジトリに登録せず、各環境の `.env` または AWS Systems Manager Parameter Store の `SecureString` で管理しています。

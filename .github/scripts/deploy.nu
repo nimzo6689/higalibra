@@ -73,16 +73,16 @@ for upload in $uploads {
   ^aws s3 cp $upload.file $upload.destination
 }
 
-# インフラのデプロイに必要なGitHub変数が設定されているか確認します。
+# インフラのデプロイに必要なGitHub Actions Secretが設定されているか確認します。
 let required_variables = [
-  { name: KEEPER_SECRET_ARN, value: $env.KEEPER_SECRET_ARN }
+  { name: KEEPER_PARAMETER_NAME, value: $env.KEEPER_PARAMETER_NAME }
   { name: COGNITO_DOMAIN_PREFIX, value: $env.COGNITO_DOMAIN_PREFIX }
   { name: VAPID_PUBLIC_KEY, value: $env.VAPID_PUBLIC_KEY }
 ]
 let missing = $required_variables | where {|variable| $variable.value | is-empty }
 if not ($missing | is-empty) {
   let names = $missing | get name | str join ', '
-  error make { msg: $"Set the required GitHub repository variables: ($names)." }
+  error make { msg: $"Set the required GitHub Actions repository secrets: ($names)." }
 }
 
 # 成果物の配置先や認証情報をCloudFormationのパラメーターに変換します。
@@ -91,7 +91,7 @@ let parameters = [
   { name: KeeperObjectKey, value: $"($env.GITHUB_SHA)/keeper.zip" }
   { name: DashObjectKey, value: $"($env.GITHUB_SHA)/dash.zip" }
   { name: PushObjectKey, value: $"($env.GITHUB_SHA)/push.zip" }
-  { name: KeeperSecretArn, value: $env.KEEPER_SECRET_ARN }
+  { name: KeeperParameterName, value: $env.KEEPER_PARAMETER_NAME }
   { name: AllowedUserIds, value: $env.ALLOWED_USER_IDS }
   { name: HostedUiDomainPrefix, value: $env.COGNITO_DOMAIN_PREFIX }
 ] | each {|parameter| $"($parameter.name)=($parameter.value)" }

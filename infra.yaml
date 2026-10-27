@@ -14,9 +14,9 @@ Parameters:
   PushObjectKey:
     Type: String
     Description: S3 key for the Push Lambda deployment package.
-  KeeperSecretArn:
+  KeeperParameterName:
     Type: String
-    Description: ARN of the pre-created Secrets Manager secret containing library, VAPID, and Gemini credentials.
+    Description: Name of the pre-created SSM SecureString parameter containing library, VAPID, and Gemini credentials.
   AllowedUserIds:
     Type: String
     Default: PENDING_USER_CONFIGURATION
@@ -174,6 +174,10 @@ Resources:
           AttributeDataType: String
           Mutable: true
           Required: true
+        - Name: cardNo
+          AttributeDataType: String
+          Mutable: true
+          Required: false
       AccountRecoverySetting:
         RecoveryMechanisms:
           - Name: verified_email
@@ -194,6 +198,12 @@ Resources:
         - openid
         - email
         - profile
+      ReadAttributes:
+        - email
+        - email_verified
+        - custom:cardNo
+      WriteAttributes:
+        - email
       CallbackURLs:
         - !Sub 'https://${MeshDistribution.DomainName}/'
       LogoutURLs:
@@ -225,8 +235,8 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: secretsmanager:GetSecretValue
-                Resource: !Ref KeeperSecretArn
+                Action: ssm:GetParameter
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -252,7 +262,7 @@ Resources:
         S3Key: !Ref KeeperObjectKey
       Environment:
         Variables:
-          KEEPER_SECRET_ARN: !Ref KeeperSecretArn
+          KEEPER_PARAMETER_NAME: !Ref KeeperParameterName
           STATUS_BUCKET: !Ref StatusBucket
           STATUS_KEY: !Ref StatusKey
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
@@ -293,8 +303,8 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: secretsmanager:GetSecretValue
-                Resource: !Ref KeeperSecretArn
+                Action: ssm:GetParameter
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -320,7 +330,7 @@ Resources:
         S3Key: !Ref DashObjectKey
       Environment:
         Variables:
-          DASH_SECRET_ARN: !Ref KeeperSecretArn
+          DASH_PARAMETER_NAME: !Ref KeeperParameterName
           DASH_HISTORY_BUCKET: !Ref StatusBucket
           DASH_HISTORY_KEY: !Ref DashHistoryKey
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
