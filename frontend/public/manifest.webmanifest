@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "図書館ノート",
+  "short_name": "図書館ノート",
+  "description": "家族みんなの図書館の貸出・予約状況",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f6f7f2",
+  "theme_color": "#f6f7f2",
+  "lang": "ja",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+name: Build and deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION || 'ap-northeast-1' }}
+  STACK_NAME: higalibra-library
+  KEEPER_SECRET_ARN: ${{ vars.KEEPER_SECRET_ARN }}
+  COGNITO_DOMAIN_PREFIX: ${{ vars.COGNITO_DOMAIN_PREFIX }}
+  ALLOWED_USER_IDS: ${{ vars.COGNITO_ALLOWED_USER_IDS || 'PENDING_USER_CONFIGURATION' }}
+  VAPID_PUBLIC_KEY: ${{ vars.VAPID_PUBLIC_KEY }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Set up Nushell
+        uses: hustcer/setup-nu@v3
+        with:
+          version: 0.105.1
+
+      - name: Ensure ZIP utility is installed
+        run: |
+          if (which zip | is-empty) {
+            ^sudo apt-get update
+            ^sudo apt-get install --yes zip
+          }
+        shell: nu {0}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        shell: nu {0}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Build, test, package, and deploy
+        run: nu .github/scripts/deploy.nu

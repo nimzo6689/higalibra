@@ -1,0 +1,39 @@
+{
+  "name": "@higalibra/push",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "lint": "eslint .",
+    "test": "pnpm build && node --experimental-strip-types --test test/*.test.mjs",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check ."
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.883.0",
+    "@aws-sdk/client-s3": "^3.883.0",
+    "@aws-sdk/lib-dynamodb": "^3.883.0",
+    "aws-jwt-verify": "^5.1.1",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/web-push": "^3.6.4",
+    "typescript": "^6.0.3",
+    "vite": "^6.1.0"
+  }
+}

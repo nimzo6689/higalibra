@@ -1,0 +1,37 @@
+{
+  "name": "@higalibra/scraping",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@10.0.0",
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "vite build && tsc --emitDeclarationOnly",
+    "dev": "vite build --watch",
+    "lint": "eslint .",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "repl": "pnpm build && node --env-file=.env --interactive --experimental-repl-await --import ./repl.mjs"
+  },
+  "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
+    "cheerio": "^1.2.0",
+    "tough-cookie": "^6.0.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^6.0.3",
+    "vite": "^6.1.0"
+  }
+}

@@ -1,0 +1,457 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Higalibra library automation, authenticated PWA, and push API.
+
+Parameters:
+  ArtifactBucketName:
+    Type: String
+    Description: Existing private S3 bucket used by GitHub Actions for Lambda zip files.
+  KeeperObjectKey:
+    Type: String
+    Description: S3 key for the Keeper Lambda deployment package.
+  DashObjectKey:
+    Type: String
+    Description: S3 key for the Dash Lambda deployment package.
+  PushObjectKey:
+    Type: String
+    Description: S3 key for the Push Lambda deployment package.
+  KeeperSecretArn:
+    Type: String
+    Description: ARN of the pre-created Secrets Manager secret containing library, VAPID, and Gemini credentials.
+  AllowedUserIds:
+    Type: String
+    Default: PENDING_USER_CONFIGURATION
+    Description: Comma-separated Cognito user sub values authorized to use the family application.
+  HostedUiDomainPrefix:
+    Type: String
+    Description: Globally unique Cognito Hosted UI domain prefix.
+    AllowedPattern: '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+  StatusKey:
+    Type: String
+    Default: user_status.json
+    Description: S3 object key for the Keeper status snapshot.
+  DashHistoryKey:
+    Type: String
+    Default: dash_research_history.json
+    Description: S3 object key for Dash's research history.
+
+Resources:
+  StatusBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration:
+        Status: Enabled
+
+  SubscriptionsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      SSESpecification:
+        SSEEnabled: true
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
+
+  MeshBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+
+  MeshOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-mesh-oac'
+        Description: CloudFront access to the private Mesh bucket.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MeshDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        DefaultRootObject: index.html
+        HttpVersion: http2and3
+        IPV6Enabled: true
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: MeshS3Origin
+            DomainName: !GetAtt MeshBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt MeshOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+        DefaultCacheBehavior:
+          TargetOriginId: MeshS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          CachePolicyId: 658327ea-f89d-4fab-a63d-7e88639e58f6
+        CustomErrorResponses:
+          - ErrorCode: 403
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 404
+            ResponseCode: 200
+            ResponsePagePath: /index.html
+            ErrorCachingMinTTL: 0
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+        Restrictions:
+          GeoRestriction:
+            RestrictionType: none
+
+  MeshBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref MeshBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${MeshBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+
+  CognitoUserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AWS::StackName}-family'
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 12
+          RequireLowercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+          RequireUppercase: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+
+  CognitoUserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AWS::StackName}-mesh'
+      UserPoolId: !Ref CognitoUserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      EnableTokenRevocation: true
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthScopes:
+        - openid
+        - email
+        - profile
+      CallbackURLs:
+        - !Sub 'https://${MeshDistribution.DomainName}/'
+      LogoutURLs:
+        - !Sub 'https://${MeshDistribution.DomainName}/'
+      SupportedIdentityProviders:
+        - COGNITO
+
+  CognitoUserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref HostedUiDomainPrefix
+      UserPoolId: !Ref CognitoUserPool
+
+  KeeperExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: KeeperDataAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref KeeperSecretArn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${StatusBucket.Arn}/${StatusKey}'
+              - Effect: Allow
+                Action: dynamodb:Scan
+                Resource: !GetAtt SubscriptionsTable.Arn
+
+  KeeperFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-keeper'
+      Runtime: nodejs24.x
+      Handler: dist/index.handler
+      Role: !GetAtt KeeperExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 512
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref KeeperObjectKey
+      Environment:
+        Variables:
+          KEEPER_SECRET_ARN: !Ref KeeperSecretArn
+          STATUS_BUCKET: !Ref StatusBucket
+          STATUS_KEY: !Ref StatusKey
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+
+  KeeperSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run Keeper daily at 18:00 Japan Standard Time.
+      ScheduleExpression: cron(0 9 * * ? *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt KeeperFunction.Arn
+          Id: KeeperFunction
+
+  KeeperSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref KeeperFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt KeeperSchedule.Arn
+
+  DashExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: DashResearchAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !Ref KeeperSecretArn
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${StatusBucket.Arn}/${DashHistoryKey}'
+              - Effect: Allow
+                Action: dynamodb:Scan
+                Resource: !GetAtt SubscriptionsTable.Arn
+
+  DashFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-dash'
+      Runtime: nodejs24.x
+      Handler: dist/index.handler
+      Role: !GetAtt DashExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 512
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref DashObjectKey
+      Environment:
+        Variables:
+          DASH_SECRET_ARN: !Ref KeeperSecretArn
+          DASH_HISTORY_BUCKET: !Ref StatusBucket
+          DASH_HISTORY_KEY: !Ref DashHistoryKey
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+
+  DashSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Run Dash every Wednesday at 16:00 Japan Standard Time.
+      ScheduleExpression: cron(0 7 ? * WED *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt DashFunction.Arn
+          Id: DashFunction
+
+  DashSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref DashFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DashSchedule.Arn
+
+  PushExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: PushApiDataAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                  - dynamodb:DeleteItem
+                Resource: !GetAtt SubscriptionsTable.Arn
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${StatusBucket.Arn}/${StatusKey}'
+
+  PushFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-push'
+      Runtime: nodejs24.x
+      Handler: dist/index.handler
+      Role: !GetAtt PushExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref PushObjectKey
+      Environment:
+        Variables:
+          SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          STATUS_BUCKET: !Ref StatusBucket
+          STATUS_KEY: !Ref StatusKey
+          COGNITO_USER_POOL_ID: !Ref CognitoUserPool
+          COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
+          ALLOWED_USER_IDS: !Ref AllowedUserIds
+
+  PushFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: NONE
+      TargetFunctionArn: !GetAtt PushFunction.Arn
+      Cors:
+        AllowCredentials: false
+        AllowHeaders:
+          - authorization
+          - content-type
+          - x-cognito-id-token
+        AllowMethods:
+          - GET
+          - POST
+          - DELETE
+        AllowOrigins:
+          - !Sub 'https://${MeshDistribution.DomainName}'
+        MaxAge: 600
+
+  PushFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PushFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: '*'
+      FunctionUrlAuthType: NONE
+
+  PushFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref PushFunction
+      Action: lambda:InvokeFunction
+      Principal: '*'
+      InvokedViaFunctionUrl: true
+
+Outputs:
+  MeshUrl:
+    Description: CloudFront URL for the Mesh PWA.
+    Value: !Sub 'https://${MeshDistribution.DomainName}/'
+  MeshBucketName:
+    Description: S3 bucket used for the Mesh static build.
+    Value: !Ref MeshBucket
+  MeshDistributionId:
+    Description: CloudFront distribution ID for cache invalidation.
+    Value: !Ref MeshDistribution
+  StatusBucketName:
+    Description: Private S3 bucket for the Keeper status snapshot.
+    Value: !Ref StatusBucket
+  SubscriptionsTableName:
+    Description: DynamoDB table containing Web Push subscriptions.
+    Value: !Ref SubscriptionsTable
+  PushFunctionUrl:
+    Description: Function URL base used by the PWA for status and subscription requests.
+    Value: !GetAtt PushFunctionUrl.FunctionUrl
+  CognitoUserPoolId:
+    Description: Cognito user pool ID.
+    Value: !Ref CognitoUserPool
+  CognitoUserPoolClientId:
+    Description: Cognito public app client ID.
+    Value: !Ref CognitoUserPoolClient
+  CognitoHostedUiDomain:
+    Description: Cognito Hosted UI base URL.
+    Value: !Sub 'https://${HostedUiDomainPrefix}.auth.${AWS::Region}.amazoncognito.com'
