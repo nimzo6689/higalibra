@@ -16,11 +16,11 @@ export async function runDash(
   const dryRun = options.dryRun ?? false;
   const now = dependencies.now ?? (() => new Date());
   const user = secret.users.find(
-    (candidate) => candidate.userId === secret.reservationUserId,
+    (candidate) => candidate.cardNo === secret.reservationCardNo,
   );
   if (!user) {
     throw new Error(
-      `Dash reservation user ${secret.reservationUserId} is not configured.`,
+      `Dash reservation card ${secret.reservationCardNo} is not configured.`,
     );
   }
 
@@ -74,7 +74,7 @@ export async function runDash(
         : dryRun
           ? 'dry-run-not-selected'
           : 'not-selected',
-      reservationUserId: secret.reservationUserId,
+      reservationCardNo: secret.reservationCardNo,
       notificationSentTo: [],
     };
 
@@ -109,18 +109,18 @@ export async function runDash(
       continue;
     }
     for (const user of secret.users) {
-      if (record.notificationSentTo.includes(user.userId)) {
+      if (record.notificationSentTo.includes(user.cardNo)) {
         continue;
       }
       try {
-        await dependencies.pushSender.send(user.userId, {
+        await dependencies.pushSender.send(user.cardNo, {
           type: 'new-book-reserved',
           title: '新着本を予約しました',
           message: `「${record.title}」を予約しました。`,
           bookTitle: record.title,
           date: now().toISOString().slice(0, 10),
         });
-        record.notificationSentTo.push(user.userId);
+        record.notificationSentTo.push(user.cardNo);
         await saveHistory(dependencies, historyByBookNo);
         notificationCount += 1;
       } catch (error) {
@@ -136,7 +136,7 @@ export async function runDash(
   }
 
   return {
-    reservationUserId: secret.reservationUserId,
+    reservationCardNo: secret.reservationCardNo,
     newBookCount: newBooks.length,
     evaluatedCount,
     skippedCount,

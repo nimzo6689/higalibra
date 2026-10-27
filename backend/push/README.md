@@ -10,8 +10,10 @@ Function URL (`AuthType: NONE`) を公開 API エンドポイントとして使�
 `sub` だけを許可します。AWS の Function URL CORS 設定で PWA の origin のみを
 許可してください。
 
-認証済みユーザーの Cognito `sub` が Keeper の `userId` と一致するようにし、
-4人分の `sub` を `ALLOWED_USER_IDS` に指定してください。
+4人分の Cognito `sub` を `ALLOWED_USER_IDS` に指定します。各 Cognito ユーザーには
+図書館カード番号を `custom:cardNo` 属性として設定してください。ID トークン中の
+署名済み `custom:cardNo` を Push 購読の利用者IDとして使い、リクエスト本文から
+利用者IDを受け取らないため、別利用者の購読を登録・解除できません。
 
 | Method   | Path             | JSON body                                                                                           | 動作                               |
 | -------- | ---------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
@@ -35,16 +37,16 @@ DynamoDB へのアクセス失敗などの内部エラーは Lambda のエラー
 | `ALLOWED_USER_IDS`     | 許可する Cognito `sub` をカンマ区切りで指定             |
 | `AWS_REGION`           | Lambda の標準リージョン設定を使用                       |
 
-購読レコードは `id=USER#<userId>#DEVICE#<deviceId>` をキーとして保存されます。
-属性は `userId`, `deviceId`, `endpoint`, `keys.p256dh`, `keys.auth`, `updatedAt` です。
+購読レコードは `id=USER#<cardNo>#DEVICE#<deviceId>` をキーとして保存されます。
+属性は `cardNo`, `deviceId`, `endpoint`, `keys.p256dh`, `keys.auth`, `updatedAt` です。
 Lambda 実行ロールにはテーブルへの `dynamodb:PutItem` と `dynamodb:DeleteItem`
 権限と、状態 JSON の `s3:GetObject` 権限が必要です。Keeper / Dash の送信ロールには同じテーブルへの
-`dynamodb:Scan` 権限と Secrets Manager からの VAPID 秘密鍵読み取り権限が必要です。
+`dynamodb:Scan` 権限と Parameter Store の `SecureString` 読み取り権限が必要です。
 
 ## 送信モジュール
 
-`DynamoDbPushSender` を各バッチから利用し、対象 `userId` に登録されたすべての
-端末へ通知を送れます。VAPID 資格情報は Secrets Manager から読み込み、
+`DynamoDbPushSender` を各バッチから利用し、対象 `cardNo` に登録されたすべての
+端末へ通知を送れます。VAPID 資格情報は Parameter Store から読み込み、
 `{ subject, publicKey, privateKey }` として渡してください。
 
 ```ts
@@ -54,7 +56,7 @@ const pushSender = new DynamoDbPushSender(
   vapidCredentials,
 );
 
-await pushSender.send(userId, {
+await pushSender.send(cardNo, {
   type: 'reservation-ready',
   title: '予約した本が取置済みです',
   message: '取置期限を確認してください。',

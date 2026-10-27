@@ -32,7 +32,7 @@ export type {
 } from './types.js';
 
 export async function handler(): Promise<{
-  reservationUserId: string;
+  reservationCardNo: string;
   newBookCount: number;
   evaluatedCount: number;
   skippedCount: number;
@@ -42,7 +42,7 @@ export async function handler(): Promise<{
 }> {
   const configuration = readDashConfiguration();
   const clients = createAwsClients(configuration.region);
-  const secret = await loadDashSecret(clients.secrets, configuration.secretArn);
+  const secret = await loadDashSecret(clients.ssm, configuration.parameterName);
 
   return runDash(
     secret,

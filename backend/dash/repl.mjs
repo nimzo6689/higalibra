@@ -16,10 +16,9 @@ const requiredEnvironmentValue = (name) => {
 
 const secret = {
   baseUrl: requiredEnvironmentValue('HIGALIBRA_BASE_URL'),
-  reservationUserId: process.env.DASH_RESERVATION_USER_ID?.trim() || 'local',
+  reservationCardNo: requiredEnvironmentValue('HIGALIBRA_CARD_NO'),
   users: [
     {
-      userId: process.env.DASH_RESERVATION_USER_ID?.trim() || 'local',
       name: 'Local user',
       cardNo: requiredEnvironmentValue('HIGALIBRA_CARD_NO'),
       password: requiredEnvironmentValue('HIGALIBRA_PASSWORD'),
@@ -51,8 +50,8 @@ globalThis.runDash = async ({ dryRun = true } = {}) =>
       createScraper: () => globalThis.scraper,
       evaluateBook,
       pushSender: {
-        async send(userId, notice) {
-          console.info(`Push (local preview) to ${userId}:`, notice);
+        async send(cardNo, notice) {
+          console.info(`Push (local preview) to ${cardNo}:`, notice);
         },
       },
     },

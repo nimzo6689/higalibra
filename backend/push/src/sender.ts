@@ -25,25 +25,26 @@ export class DynamoDbPushSender implements PushSender {
     );
   }
 
-  async send(userId: string, notice: PushNotice): Promise<void> {
+  async send(cardNo: string, notice: PushNotice): Promise<void> {
     let lastKey: Record<string, unknown> | undefined;
     const subscriptions: PushSubscription[] = [];
     do {
       const response = await this.client.send(
         new ScanCommand({
           TableName: this.tableName,
-          FilterExpression: '#userId = :userId',
+          FilterExpression: '#cardNo = :cardNo OR #legacyUserId = :cardNo',
           ExclusiveStartKey: lastKey,
           ProjectionExpression: 'endpoint, #keys',
           ExpressionAttributeNames: {
-            '#userId': 'userId',
+            '#cardNo': 'cardNo',
+            '#legacyUserId': 'userId',
             '#keys': 'keys',
           },
-          ExpressionAttributeValues: { ':userId': userId },
+          ExpressionAttributeValues: { ':cardNo': cardNo },
         }),
       );
       for (const item of response.Items ?? []) {
-        subscriptions.push(parseSubscription(item, userId));
+        subscriptions.push(parseSubscription(item, cardNo));
       }
       lastKey = response.LastEvaluatedKey;
     } while (lastKey);
@@ -53,7 +54,7 @@ export class DynamoDbPushSender implements PushSender {
       body: notice.message,
       data: {
         type: notice.type,
-        userId,
+        cardNo,
         bookTitle: notice.bookTitle,
         date: notice.date,
       },
@@ -69,7 +70,7 @@ export class DynamoDbPushSender implements PushSender {
     if (failures.length > 0) {
       throw new AggregateError(
         failures,
-        `Could not send ${failures.length} push notification(s) to user ${userId}.`,
+        `Could not send ${failures.length} push notification(s) to card ${cardNo}.`,
       );
     }
   }
@@ -77,7 +78,7 @@ export class DynamoDbPushSender implements PushSender {
 
 function parseSubscription(
   value: Record<string, unknown>,
-  userId: string,
+  cardNo: string,
 ): PushSubscription {
   const keys = value.keys;
   if (
@@ -87,7 +88,7 @@ function parseSubscription(
     typeof keys.auth !== 'string'
   ) {
     throw new Error(
-      `DynamoDB contains an invalid push subscription for user ${userId}.`,
+      `DynamoDB contains an invalid push subscription for card ${cardNo}.`,
     );
   }
 

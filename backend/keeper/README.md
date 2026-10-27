@@ -7,16 +7,17 @@ Web Push 通知を行う Lambda パッケージです。
 
 Lambda に次の環境変数を設定します。
 
-| 変数                  | 用途                                             |
-| --------------------- | ------------------------------------------------ |
-| `KEEPER_SECRET_ARN`   | Secrets Manager の設定 JSON の ARN               |
-| `STATUS_BUCKET`       | 利用者状況 JSON を保存する S3 バケット           |
-| `STATUS_KEY`          | S3 オブジェクトキー（省略時 `user_status.json`） |
-| `SUBSCRIPTIONS_TABLE` | Push 購読情報を格納する DynamoDB テーブル        |
-| `AWS_REGION`          | AWS リージョン（Lambda の標準設定を利用）        |
+| 変数                    | 用途                                             |
+| ----------------------- | ------------------------------------------------ |
+| `KEEPER_PARAMETER_NAME` | Parameter Store の SecureString 設定 JSON の名前 |
+| `STATUS_BUCKET`         | 利用者状況 JSON を保存する S3 バケット           |
+| `STATUS_KEY`            | S3 オブジェクトキー（省略時 `user_status.json`） |
+| `SUBSCRIPTIONS_TABLE`   | Push 購読情報を格納する DynamoDB テーブル        |
+| `AWS_REGION`            | AWS リージョン（Lambda の標準設定を利用）        |
 
-Secrets Manager の JSON は以下の形式です。図書館アカウントと VAPID 秘密鍵は
-リポジトリや Lambda 環境変数に置かず、Secrets Manager に格納してください。
+Parameter Store の `SecureString` に、以下の JSON を保存してください。図書館
+アカウントと VAPID 秘密鍵はリポジトリや Lambda 環境変数に置かず、暗号化した
+`SecureString` として管理します。
 `users` には家族4人分の利用者情報を設定します。
 
 ```json
@@ -24,25 +25,21 @@ Secrets Manager の JSON は以下の形式です。図書館アカウントと 
   "baseUrl": "https://library.example/opw/OPW",
   "users": [
     {
-      "userId": "member-1",
       "name": "利用者1",
       "cardNo": "カード番号1",
       "password": "パスワード1"
     },
     {
-      "userId": "member-2",
       "name": "利用者2",
       "cardNo": "カード番号2",
       "password": "パスワード2"
     },
     {
-      "userId": "member-3",
       "name": "利用者3",
       "cardNo": "カード番号3",
       "password": "パスワード3"
     },
     {
-      "userId": "family-member-id",
       "name": "利用者名",
       "cardNo": "利用者カード番号",
       "password": "図書館パスワード"
@@ -53,18 +50,19 @@ Secrets Manager の JSON は以下の形式です。図書館アカウントと 
     "publicKey": "VAPID公開鍵",
     "privateKey": "VAPID秘密鍵"
   },
-  "reservationUserId": "family-member-id",
+  "reservationCardNo": "Dash が予約に使うカード番号",
   "geminiApiKey": "Google AI Studio API key"
 }
 ```
 
-`reservationUserId` と `geminiApiKey` は Dash でも使います。Dash は指定した
-`reservationUserId` のアカウントだけで予約します。Dash の評価ルールとローカル
+`reservationCardNo` と `geminiApiKey` は Dash でも使います。Dash は指定した
+`reservationCardNo` のアカウントだけで予約します。PWA で使う利用者 ID と Push
+購読のキーには `cardNo` を使用します。Dash の評価ルールとローカル
 REPL の使い方は [backend/dash/README.md](../dash/README.md) を参照してください。
 
-DynamoDB の購読項目は `userId`, `endpoint`, `keys.p256dh`, `keys.auth` を持つ必要が
-あります。Keeper は `userId` で対象項目を Scan します。Lambda 実行ロールには
-設定した Secrets Manager secret の読み取り、S3 オブジェクトの読み書き、
+DynamoDB の購読項目は `cardNo`, `endpoint`, `keys.p256dh`, `keys.auth` を持つ必要が
+あります。Keeper は `cardNo` で対象項目を Scan します。Lambda 実行ロールには
+設定したパラメーターの復号を伴う読み取り、S3 オブジェクトの読み書き、
 DynamoDB テーブルの Scan 権限が必要です。
 
 初回実行時、S3 に状態ファイルがなければ空の前回状態として扱います。成功後、

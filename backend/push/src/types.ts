@@ -15,24 +15,24 @@ export interface PushNotice {
 }
 
 export interface PushSender {
-  send(userId: string, notice: PushNotice): Promise<void>;
+  send(cardNo: string, notice: PushNotice): Promise<void>;
 }
 
 export interface StoredPushSubscription extends PushSubscription {
   id: string;
-  userId: string;
+  cardNo: string;
   deviceId: string;
   updatedAt: string;
 }
 
 export interface SubscriptionStore {
   save(
-    userId: string,
+    cardNo: string,
     deviceId: string,
     subscription: PushSubscription,
     updatedAt: string,
   ): Promise<void>;
-  delete(userId: string, deviceId: string): Promise<void>;
+  delete(cardNo: string, deviceId: string): Promise<void>;
 }
 
 export interface FunctionUrlEvent {

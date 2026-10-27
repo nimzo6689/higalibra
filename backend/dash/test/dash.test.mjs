@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { parseDashSecret } from '../src/aws.ts';
 import { runDash } from '../src/dash.ts';
 
 const secret = {
   baseUrl: 'https://library.example/OPW',
-  reservationUserId: 'member-2',
+  reservationCardNo: 'card-2',
   users: [
-    { userId: 'member-1', cardNo: 'card-1', password: 'pass-1' },
-    { userId: 'member-2', cardNo: 'card-2', password: 'pass-2' },
-    { userId: 'member-3', cardNo: 'card-3', password: 'pass-3' },
-    { userId: 'member-4', cardNo: 'card-4', password: 'pass-4' },
+    { name: 'Member 1', cardNo: 'card-1', password: 'pass-1' },
+    { name: 'Member 2', cardNo: 'card-2', password: 'pass-2' },
+    { name: 'Member 3', cardNo: 'card-3', password: 'pass-3' },
+    { name: 'Member 4', cardNo: 'card-4', password: 'pass-4' },
   ],
   geminiApiKey: 'key',
   vapid: {
@@ -39,6 +40,17 @@ const books = [
     acceptanceDate: null,
   },
 ];
+
+test('parses card-number keyed configuration without a duplicate userId', () => {
+  const parsed = parseDashSecret(secret);
+
+  assert.equal(parsed.reservationCardNo, 'card-2');
+  assert.deepEqual(
+    parsed.users.map(({ cardNo }) => cardNo),
+    ['card-1', 'card-2', 'card-3', 'card-4'],
+  );
+  assert.equal('userId' in parsed.users[0], false);
+});
 
 function makeDependencies({ history = { version: 1, books: [] }, push } = {}) {
   const state = {
@@ -87,9 +99,9 @@ function makeDependencies({ history = { version: 1, books: [] }, push } = {}) {
         };
       },
       pushSender: {
-        async send(userId, notice) {
-          state.notifications.push({ userId, notice });
-          await push?.(userId, notice);
+        async send(cardNo, notice) {
+          state.notifications.push({ cardNo, notice });
+          await push?.(cardNo, notice);
         },
       },
       now: () => new Date('2026-10-27T09:00:00.000Z'),
@@ -138,13 +150,13 @@ test('reserves on the configured account and notifies the family', async () => {
   assert.equal(result.reservedCount, 1);
   assert.equal(result.notificationCount, 4);
   assert.deepEqual(
-    state.notifications.map(({ userId }) => userId),
-    secret.users.map(({ userId }) => userId),
+    state.notifications.map(({ cardNo }) => cardNo),
+    secret.users.map(({ cardNo }) => cardNo),
   );
   assert.equal(state.history.books[0].status, 'reserved');
   assert.deepEqual(
     state.history.books[0].notificationSentTo,
-    secret.users.map(({ userId }) => userId),
+    secret.users.map(({ cardNo }) => cardNo),
   );
 });
 
@@ -161,7 +173,7 @@ test('skips previously reviewed books and retries unsent reservation notificatio
         shouldReserve: true,
         reason: 'Good reviews.',
         status: 'reserved',
-        reservationUserId: 'member-2',
+        reservationCardNo: 'card-2',
         notificationSentTo: [],
       },
       {
@@ -173,7 +185,7 @@ test('skips previously reviewed books and retries unsent reservation notificatio
         shouldReserve: false,
         reason: 'Insufficient evidence.',
         status: 'not-selected',
-        reservationUserId: 'member-2',
+        reservationCardNo: 'card-2',
         notificationSentTo: [],
       },
     ],
@@ -188,7 +200,7 @@ test('skips previously reviewed books and retries unsent reservation notificatio
   assert.equal(state.notifications.length, 4);
   assert.deepEqual(
     state.history.books[0].notificationSentTo,
-    secret.users.map(({ userId }) => userId),
+    secret.users.map(({ cardNo }) => cardNo),
   );
 });
 
@@ -210,7 +222,7 @@ test('fails before scraping if the configured reservation account is missing', a
   const { dependencies, state } = makeDependencies();
 
   await assert.rejects(
-    runDash({ ...secret, reservationUserId: 'unknown' }, dependencies),
+    runDash({ ...secret, reservationCardNo: 'unknown' }, dependencies),
     /is not configured/,
   );
   assert.deepEqual(state.scraperOptions, []);

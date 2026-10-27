@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHandler } from '../dist/index.js';
 
-const userId = 'family-member-1';
+const cognitoSub = 'family-member-sub';
+const cardNo = '2010610570';
 const validSubscription = {
   endpoint: 'https://push.example/subscription',
   keys: { p256dh: 'public-key', auth: 'auth-secret' },
@@ -18,14 +19,14 @@ function createRoute() {
   const route = createHandler({
     async verifyToken(token) {
       if (token === 'valid-token') {
-        return userId;
+        return { sub: cognitoSub, cardNo };
       }
       if (token === 'other-user-token') {
-        return 'not-allowed-member';
+        return { sub: 'not-allowed-member', cardNo: 'other-card' };
       }
       return null;
     },
-    allowedUserIds: new Set([userId]),
+    allowedUserIds: new Set([cognitoSub]),
     now: () => new Date('2026-10-27T05:00:00.000Z'),
     subscriptions: {
       async save(...args) {
@@ -61,13 +62,29 @@ test('registers a subscription for the authenticated family member', async () =>
   const { route, saved } = createRoute();
 
   const response = await route(
-    event('POST', { deviceId: 'phone-1', subscription: validSubscription }),
+    event('POST', {
+      deviceId: 'phone-1',
+      cardNo: 'attacker-selected-card',
+      subscription: validSubscription,
+    }),
   );
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(saved, [
-    [userId, 'phone-1', validSubscription, '2026-10-27T05:00:00.000Z'],
+    [cardNo, 'phone-1', validSubscription, '2026-10-27T05:00:00.000Z'],
   ]);
+});
+
+test('keys subscriptions by the signed card number claim, not the Cognito sub', async () => {
+  const { route, saved } = createRoute();
+
+  const response = await route(
+    event('POST', { deviceId: 'phone-1', subscription: validSubscription }),
+  );
+
+  assert.equal(response.statusCode, 200);
+  assert.equal(saved[0][0], cardNo);
+  assert.notEqual(saved[0][0], cognitoSub);
 });
 
 test('deletes only the authenticated user device subscription', async () => {
@@ -76,7 +93,7 @@ test('deletes only the authenticated user device subscription', async () => {
   const response = await route(event('DELETE', { deviceId: 'phone-1' }));
 
   assert.equal(response.statusCode, 200);
-  assert.deepEqual(deleted, [[userId, 'phone-1']]);
+  assert.deepEqual(deleted, [[cardNo, 'phone-1']]);
 });
 
 test('returns the status snapshot to an authenticated family member', async () => {

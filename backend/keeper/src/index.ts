@@ -28,8 +28,8 @@ export async function handler(): Promise<{
   const configuration = readKeeperConfiguration();
   const clients = createAwsClients(configuration.region);
   const secret = await loadKeeperSecret(
-    clients.secrets,
-    configuration.secretArn,
+    clients.ssm,
+    configuration.parameterName,
   );
 
   return runKeeper(secret, {

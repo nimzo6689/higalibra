@@ -1,13 +1,10 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from '@aws-sdk/client-secrets-manager';
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { S3Client } from '@aws-sdk/client-s3';
 import type { DashSecret } from './types.js';
 
 export interface DashConfiguration {
-  secretArn: string;
+  parameterName: string;
   historyBucket: string;
   historyKey: string;
   subscriptionsTable: string;
@@ -18,7 +15,7 @@ export function readDashConfiguration(
   environment: NodeJS.ProcessEnv = process.env,
 ): DashConfiguration {
   return {
-    secretArn: requiredEnvironmentValue(environment, 'DASH_SECRET_ARN'),
+    parameterName: requiredEnvironmentValue(environment, 'DASH_PARAMETER_NAME'),
     historyBucket: requiredEnvironmentValue(environment, 'DASH_HISTORY_BUCKET'),
     historyKey:
       environment.DASH_HISTORY_KEY?.trim() || 'dash_research_history.json',
@@ -31,19 +28,15 @@ export function readDashConfiguration(
 }
 
 export async function loadDashSecret(
-  client: SecretsManagerClient,
-  secretArn: string,
+  client: SSMClient,
+  parameterName: string,
 ): Promise<DashSecret> {
   const response = await client.send(
-    new GetSecretValueCommand({ SecretId: secretArn }),
+    new GetParameterCommand({ Name: parameterName, WithDecryption: true }),
   );
-  const secretText =
-    response.SecretString ??
-    (response.SecretBinary
-      ? Buffer.from(response.SecretBinary).toString('utf8')
-      : undefined);
+  const secretText = response.Parameter?.Value;
   if (!secretText) {
-    throw new Error(`Secrets Manager secret ${secretArn} has no value.`);
+    throw new Error(`SSM parameter ${parameterName} has no value.`);
   }
   return parseDashSecret(JSON.parse(secretText) as unknown);
 }
@@ -64,30 +57,29 @@ export function parseDashSecret(value: unknown): DashSecret {
       throw new Error(`Dash secret user at index ${index} must be an object.`);
     }
     return {
-      userId: requiredString(user.userId, `users[${index}].userId`),
       name: requiredString(user.name, `users[${index}].name`),
       cardNo: requiredString(user.cardNo, `users[${index}].cardNo`),
       password: requiredString(user.password, `users[${index}].password`),
     };
   });
-  if (new Set(users.map((user) => user.userId)).size !== users.length) {
-    throw new Error('Dash secret contains duplicate userId values.');
+  if (new Set(users.map((user) => user.cardNo)).size !== users.length) {
+    throw new Error('Dash secret contains duplicate cardNo values.');
   }
 
-  const reservationUserId = requiredString(
-    value.reservationUserId,
-    'reservationUserId',
+  const reservationCardNo = requiredString(
+    value.reservationCardNo,
+    'reservationCardNo',
   );
-  if (!users.some((user) => user.userId === reservationUserId)) {
+  if (!users.some((user) => user.cardNo === reservationCardNo)) {
     throw new Error(
-      'Dash reservationUserId must match one of the configured users.',
+      'Dash reservationCardNo must match one of the configured users.',
     );
   }
 
   return {
     baseUrl: requiredString(value.baseUrl, 'baseUrl'),
     users,
-    reservationUserId,
+    reservationCardNo,
     geminiApiKey: requiredString(value.geminiApiKey, 'geminiApiKey'),
     vapid: {
       subject: requiredString(value.vapid.subject, 'vapid.subject'),
@@ -122,11 +114,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export function createAwsClients(region?: string): {
   dynamodb: DynamoDBClient;
   s3: S3Client;
-  secrets: SecretsManagerClient;
+  ssm: SSMClient;
 } {
   return {
     dynamodb: new DynamoDBClient({ region }),
     s3: new S3Client({ region }),
-    secrets: new SecretsManagerClient({ region }),
+    ssm: new SSMClient({ region }),
   };
 }

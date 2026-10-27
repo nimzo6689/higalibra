@@ -17,10 +17,8 @@ export interface ReservedBook {
 }
 
 export interface LibraryUser {
-  userId: string;
+  cardNo: string;
   name: string;
-  cardNo?: string;
-  cardNumber?: string;
   borrowedBooks: BorrowedBook[];
   reservedBooks: ReservedBook[];
 }

@@ -2,7 +2,6 @@ import type { NewBook, LibraryScraper } from '@higalibra/scraping';
 import type { PushSender } from '@higalibra/push';
 
 export interface DashUser {
-  userId: string;
   name: string;
   cardNo: string;
   password: string;
@@ -17,7 +16,7 @@ export interface VapidCredentials {
 export interface DashSecret {
   baseUrl: string;
   users: DashUser[];
-  reservationUserId: string;
+  reservationCardNo: string;
   geminiApiKey: string;
   vapid: VapidCredentials;
 }
@@ -43,7 +42,7 @@ export interface ResearchRecord {
   shouldReserve: boolean;
   reason: string;
   status: ResearchStatus;
-  reservationUserId: string;
+  reservationCardNo: string;
   notificationSentTo: string[];
 }
 
@@ -78,7 +77,7 @@ export interface DashBookResult {
 }
 
 export interface DashResult {
-  reservationUserId: string;
+  reservationCardNo: string;
   newBookCount: number;
   evaluatedCount: number;
   skippedCount: number;

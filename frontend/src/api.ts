@@ -36,9 +36,15 @@ export async function fetchUserStatus(
 }
 
 function parseUser(value: unknown, index: number): LibraryUser {
+  const cardNo =
+    isRecord(value) && typeof value.cardNo === 'string'
+      ? value.cardNo
+      : isRecord(value) && typeof value.userId === 'string'
+        ? value.userId
+        : null;
   if (
     !isRecord(value) ||
-    typeof value.userId !== 'string' ||
+    cardNo === null ||
     typeof value.name !== 'string' ||
     !Array.isArray(value.borrowedBooks) ||
     !Array.isArray(value.reservedBooks)
@@ -47,10 +53,8 @@ function parseUser(value: unknown, index: number): LibraryUser {
   }
 
   return {
-    userId: value.userId,
+    cardNo,
     name: value.name,
-    cardNo: optionalString(value.cardNo),
-    cardNumber: optionalString(value.cardNumber),
     borrowedBooks: value.borrowedBooks.map((book, bookIndex) =>
       parseBorrowedBook(book, index, bookIndex),
     ),

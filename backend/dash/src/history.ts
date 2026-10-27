@@ -80,6 +80,10 @@ export function parseResearchHistory(value: unknown): ResearchHistory {
       throw new Error(`Research history entry ${index} must be an object.`);
     }
     const status = readResearchStatus(book.status);
+    const reservationCardNo =
+      typeof book.reservationCardNo === 'string'
+        ? book.reservationCardNo
+        : book.reservationUserId;
     if (
       typeof book.bookNo !== 'string' ||
       typeof book.title !== 'string' ||
@@ -88,9 +92,9 @@ export function parseResearchHistory(value: unknown): ResearchHistory {
       typeof book.evaluatedAt !== 'string' ||
       typeof book.shouldReserve !== 'boolean' ||
       typeof book.reason !== 'string' ||
-      typeof book.reservationUserId !== 'string' ||
+      typeof reservationCardNo !== 'string' ||
       !Array.isArray(book.notificationSentTo) ||
-      !book.notificationSentTo.every((userId) => typeof userId === 'string')
+      !book.notificationSentTo.every((cardNo) => typeof cardNo === 'string')
     ) {
       throw new Error(`Research history entry ${index} has invalid fields.`);
     }
@@ -103,7 +107,7 @@ export function parseResearchHistory(value: unknown): ResearchHistory {
       shouldReserve: book.shouldReserve,
       reason: book.reason,
       status,
-      reservationUserId: book.reservationUserId,
+      reservationCardNo,
       notificationSentTo: book.notificationSentTo,
     };
   });

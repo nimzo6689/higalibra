@@ -17,7 +17,7 @@ export class DynamoDbSubscriptionStore implements SubscriptionStore {
   }
 
   async save(
-    userId: string,
+    cardNo: string,
     deviceId: string,
     subscription: PushSubscription,
     updatedAt: string,
@@ -26,8 +26,8 @@ export class DynamoDbSubscriptionStore implements SubscriptionStore {
       new PutCommand({
         TableName: this.tableName,
         Item: {
-          id: subscriptionId(userId, deviceId),
-          userId,
+          id: subscriptionId(cardNo, deviceId),
+          cardNo,
           deviceId,
           endpoint: subscription.endpoint,
           keys: subscription.keys,
@@ -37,16 +37,16 @@ export class DynamoDbSubscriptionStore implements SubscriptionStore {
     );
   }
 
-  async delete(userId: string, deviceId: string): Promise<void> {
+  async delete(cardNo: string, deviceId: string): Promise<void> {
     await this.client.send(
       new DeleteCommand({
         TableName: this.tableName,
-        Key: { id: subscriptionId(userId, deviceId) },
+        Key: { id: subscriptionId(cardNo, deviceId) },
       }),
     );
   }
 }
 
-export function subscriptionId(userId: string, deviceId: string): string {
-  return `USER#${userId}#DEVICE#${deviceId}`;
+export function subscriptionId(cardNo: string, deviceId: string): string {
+  return `USER#${cardNo}#DEVICE#${deviceId}`;
 }

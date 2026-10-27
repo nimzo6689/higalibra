@@ -29,11 +29,16 @@ export type {
 } from './types.js';
 
 interface PushApiDependencies {
-  verifyToken(token: string): Promise<string | null>;
+  verifyToken(token: string): Promise<VerifiedUser | null>;
   subscriptions: SubscriptionStore;
   statusStore: StatusStore;
   allowedUserIds: ReadonlySet<string>;
   now?: () => Date;
+}
+
+interface VerifiedUser {
+  sub: string;
+  cardNo: string;
 }
 
 interface PushApiConfiguration {
@@ -74,8 +79,8 @@ export function createHandler(dependencies: PushApiDependencies) {
       return response(401, { error: 'Authentication is required.' });
     }
 
-    const userId = await dependencies.verifyToken(token);
-    if (!userId || !dependencies.allowedUserIds.has(userId)) {
+    const user = await dependencies.verifyToken(token);
+    if (!user || !dependencies.allowedUserIds.has(user.sub)) {
       return response(401, { error: 'The ID token is not authorized.' });
     }
 
@@ -114,7 +119,7 @@ export function createHandler(dependencies: PushApiDependencies) {
         dependencies.now ?? (() => new Date())
       )().toISOString();
       await dependencies.subscriptions.save(
-        userId,
+        user.cardNo,
         deviceId,
         subscription,
         updatedAt,
@@ -122,7 +127,7 @@ export function createHandler(dependencies: PushApiDependencies) {
       return response(200, { deviceId, updatedAt });
     }
 
-    await dependencies.subscriptions.delete(userId, deviceId);
+    await dependencies.subscriptions.delete(user.cardNo, deviceId);
     return response(200, { deviceId, deleted: true });
   };
 }
@@ -146,7 +151,12 @@ function createConfiguredHandler(configuration: PushApiConfiguration) {
     async verifyToken(token) {
       try {
         const claims = await verifier.verify(token);
-        return typeof claims.sub === 'string' ? claims.sub : null;
+        const cardNo = claims['custom:cardNo'];
+        return typeof claims.sub === 'string' &&
+          typeof cardNo === 'string' &&
+          cardNo.trim() !== ''
+          ? { sub: claims.sub, cardNo }
+          : null;
       } catch (error) {
         if (isInvalidIdToken(error)) {
           return null;

@@ -4,7 +4,6 @@ import { runKeeper } from '../src/keeper.ts';
 
 const today = Temporal.PlainDate.from('2026-10-27');
 const user = {
-  userId: 'member-1',
   name: '利用者',
   cardNo: 'card',
   password: 'password',
@@ -59,9 +58,9 @@ function dependencies({ previous = null, status, afterExtension, send }) {
       },
     },
     pushSender: {
-      async send(userId, notice) {
-        notices.push({ userId, notice });
-        await send?.(userId, notice);
+      async send(cardNo, notice) {
+        notices.push({ cardNo, notice });
+        await send?.(cardNo, notice);
       },
     },
     createScraper() {
@@ -133,7 +132,7 @@ test('notifies only when a reservation first becomes held', async () => {
     lastUpdated: '2026-10-26T09:00:00.000Z',
     users: [
       {
-        userId: user.userId,
+        cardNo: user.cardNo,
         name: user.name,
         borrowedBooks: [],
         reservedBooks: [

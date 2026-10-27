@@ -10,44 +10,40 @@
 
 ## Lambda 設定
 
-| 環境変数              | 用途                                                           |
-| --------------------- | -------------------------------------------------------------- |
-| `DASH_SECRET_ARN`     | 図書館アカウント・Gemini・VAPID 設定を含む Secrets Manager ARN |
-| `DASH_HISTORY_BUCKET` | 調査履歴を保存する非公開 S3 バケット                           |
-| `DASH_HISTORY_KEY`    | 履歴キー（省略時 `dash_research_history.json`）                |
-| `SUBSCRIPTIONS_TABLE` | Web Push 購読情報を格納する DynamoDB テーブル                  |
-| `AWS_REGION`          | AWS リージョン（Lambda 標準設定を利用）                        |
+| 環境変数              | 用途                                                                   |
+| --------------------- | ---------------------------------------------------------------------- |
+| `DASH_PARAMETER_NAME` | 図書館アカウント・Gemini・VAPID 設定を含む SecureString パラメーター名 |
+| `DASH_HISTORY_BUCKET` | 調査履歴を保存する非公開 S3 バケット                                   |
+| `DASH_HISTORY_KEY`    | 履歴キー（省略時 `dash_research_history.json`）                        |
+| `SUBSCRIPTIONS_TABLE` | Web Push 購読情報を格納する DynamoDB テーブル                          |
+| `AWS_REGION`          | AWS リージョン（Lambda 標準設定を利用）                                |
 
-Secrets Manager の JSON は以下の形式です。図書館の認証情報、Gemini API キー、
-VAPID 秘密鍵をリポジトリや Lambda 環境変数に置かないでください。
-`reservationUserId` は、4人の `users[].userId` のいずれか1つに設定します。
+Parameter Store の `SecureString` に保存する JSON は以下の形式です。図書館の認証情報、
+Gemini API キー、VAPID 秘密鍵をリポジトリや Lambda 環境変数に置かないでください。
+`reservationCardNo` は、4人の `users[].cardNo` のいずれか1つに設定します。
 
 ```json
 {
   "baseUrl": "https://library.example/opw/OPW",
-  "reservationUserId": "member-1",
+  "reservationCardNo": "カード番号1",
   "geminiApiKey": "Google AI Studio API key",
   "users": [
     {
-      "userId": "member-1",
       "name": "利用者1",
       "cardNo": "カード番号1",
       "password": "パスワード1"
     },
     {
-      "userId": "member-2",
       "name": "利用者2",
       "cardNo": "カード番号2",
       "password": "パスワード2"
     },
     {
-      "userId": "member-3",
       "name": "利用者3",
       "cardNo": "カード番号3",
       "password": "パスワード3"
     },
     {
-      "userId": "member-4",
       "name": "利用者4",
       "cardNo": "カード番号4",
       "password": "パスワード4"
@@ -62,13 +58,14 @@ VAPID 秘密鍵をリポジトリや Lambda 環境変数に置かないでくだ
 ```
 
 Gemini Flash に Google Search grounding を有効にして新着本を評価させ、結果は
-日本語の短い理由とともに履歴に保存します。予約は `reservationUserId` のみで行い、
+日本語の短い理由とともに履歴に保存します。予約は `reservationCardNo` のアカウントで行い、
 予約成功通知は設定された4人全員に送信します。
 
 ## ローカル REPL
 
 Node.js 24 と pnpm が必要です。`backend/dash/.env.example` を `.env` にコピーし、
-図書館ログイン情報と Gemini API キーを設定します。
+図書館ログイン情報と Gemini API キーを設定します。ローカル利用では
+`HIGALIBRA_CARD_NO` が予約に使用するカード番号になります。
 
 ```sh
 pnpm install
@@ -97,5 +94,5 @@ pnpm --filter @higalibra/dash format:check
 ```
 
 Lambda ハンドラーは `dist/index.handler`、ランタイムは Node.js 24 です。デプロイ
-ロールには secret 読み取り、履歴オブジェクトの S3 読み書き、および購読テーブルの
+ロールには SecureString パラメーター読み取り、履歴オブジェクトの S3 読み書き、および購読テーブルの
 Scan 権限が必要です。

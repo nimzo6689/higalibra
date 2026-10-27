@@ -3,15 +3,12 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
-import {
-  GetSecretValueCommand,
-  SecretsManagerClient,
-} from '@aws-sdk/client-secrets-manager';
+import { GetParameterCommand, SSMClient } from '@aws-sdk/client-ssm';
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import type { KeeperSecret, StatusStore, UserStatusSnapshot } from './types.js';
 
 export interface KeeperConfiguration {
-  secretArn: string;
+  parameterName: string;
   statusBucket: string;
   statusKey: string;
   subscriptionsTable: string;
@@ -22,7 +19,10 @@ export function readKeeperConfiguration(
   environment: NodeJS.ProcessEnv = process.env,
 ): KeeperConfiguration {
   return {
-    secretArn: requiredEnvironmentValue(environment, 'KEEPER_SECRET_ARN'),
+    parameterName: requiredEnvironmentValue(
+      environment,
+      'KEEPER_PARAMETER_NAME',
+    ),
     statusBucket: requiredEnvironmentValue(environment, 'STATUS_BUCKET'),
     statusKey: environment.STATUS_KEY?.trim() || 'user_status.json',
     subscriptionsTable: requiredEnvironmentValue(
@@ -45,19 +45,15 @@ function requiredEnvironmentValue(
 }
 
 export async function loadKeeperSecret(
-  client: SecretsManagerClient,
-  secretArn: string,
+  client: SSMClient,
+  parameterName: string,
 ): Promise<KeeperSecret> {
   const response = await client.send(
-    new GetSecretValueCommand({ SecretId: secretArn }),
+    new GetParameterCommand({ Name: parameterName, WithDecryption: true }),
   );
-  const secretText =
-    response.SecretString ??
-    (response.SecretBinary
-      ? Buffer.from(response.SecretBinary).toString('utf8')
-      : undefined);
+  const secretText = response.Parameter?.Value;
   if (!secretText) {
-    throw new Error(`Secrets Manager secret ${secretArn} has no value.`);
+    throw new Error(`SSM parameter ${parameterName} has no value.`);
   }
 
   return parseKeeperSecret(JSON.parse(secretText) as unknown);
@@ -84,15 +80,14 @@ function parseKeeperSecret(value: unknown): KeeperSecret {
       );
     }
     return {
-      userId: requiredString(user.userId, `users[${index}].userId`),
       name: requiredString(user.name, `users[${index}].name`),
       cardNo: requiredString(user.cardNo, `users[${index}].cardNo`),
       password: requiredString(user.password, `users[${index}].password`),
     };
   });
-  const userIds = users.map((user) => user.userId);
-  if (new Set(userIds).size !== userIds.length) {
-    throw new Error('Keeper secret contains duplicate userId values.');
+  const cardNumbers = users.map((user) => user.cardNo);
+  if (new Set(cardNumbers).size !== cardNumbers.length) {
+    throw new Error('Keeper secret contains duplicate cardNo values.');
   }
 
   return {
@@ -170,11 +165,19 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
   const users = value.users.map((user) => {
     if (
       !isRecord(user) ||
-      typeof user.userId !== 'string' ||
       typeof user.name !== 'string' ||
       !Array.isArray(user.borrowedBooks) ||
       !Array.isArray(user.reservedBooks)
     ) {
+      throw new Error('Stored user status contains an invalid user entry.');
+    }
+    const cardNo =
+      typeof user.cardNo === 'string'
+        ? user.cardNo
+        : typeof user.userId === 'string'
+          ? user.userId
+          : null;
+    if (!cardNo) {
       throw new Error('Stored user status contains an invalid user entry.');
     }
     const borrowedBooks = user.borrowedBooks.map((book) => {
@@ -218,7 +221,7 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
       };
     });
     return {
-      userId: user.userId,
+      cardNo,
       name: user.name,
       borrowedBooks,
       reservedBooks,
@@ -236,12 +239,12 @@ function isS3NotFound(error: unknown): boolean {
 
 export function createAwsClients(region?: string): {
   s3: S3Client;
-  secrets: SecretsManagerClient;
+  ssm: SSMClient;
   dynamodb: DynamoDBClient;
 } {
   return {
     s3: new S3Client({ region }),
-    secrets: new SecretsManagerClient({ region }),
+    ssm: new SSMClient({ region }),
     dynamodb: new DynamoDBClient({ region }),
   };
 }

@@ -2,7 +2,6 @@ import type { Temporal } from '@js-temporal/polyfill';
 import type { LibraryScraper } from '@higalibra/scraping';
 
 export interface KeeperUser {
-  userId: string;
   name: string;
   cardNo: string;
   password: string;
@@ -38,7 +37,7 @@ export interface StoredReservedBook {
 }
 
 export interface StoredUserStatus {
-  userId: string;
+  cardNo: string;
   name: string;
   borrowedBooks: StoredBorrowedBook[];
   reservedBooks: StoredReservedBook[];
@@ -71,7 +70,7 @@ export interface StatusStore {
 }
 
 export interface PushSender {
-  send(userId: string, notice: PushNotice): Promise<void>;
+  send(cardNo: string, notice: PushNotice): Promise<void>;
 }
 
 export interface KeeperDependencies {

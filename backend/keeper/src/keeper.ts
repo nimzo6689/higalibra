@@ -33,10 +33,10 @@ export async function runKeeper(
 
   const previous = await dependencies.statusStore.load();
   const previousUsers = new Map(
-    previous?.users.map((user) => [user.userId, user]) ?? [],
+    previous?.users.map((user) => [user.cardNo, user]) ?? [],
   );
   const updatedUsers: StoredUserStatus[] = [];
-  const notices: { userId: string; notice: PushNotice }[] = [];
+  const notices: { cardNo: string; notice: PushNotice }[] = [];
   let extendedBookCount = 0;
 
   for (const user of secret.users) {
@@ -58,7 +58,7 @@ export async function runKeeper(
         const response = await scraper.extendLoan(book.barcode);
         if (response.status >= 400) {
           throw new Error(
-            `Loan extension failed for user ${user.userId}, barcode ${book.barcode}: HTTP ${response.status}.`,
+            `Loan extension failed for card ${user.cardNo}, barcode ${book.barcode}: HTTP ${response.status}.`,
           );
         }
         extendedBarcodes.add(book.barcode);
@@ -70,16 +70,16 @@ export async function runKeeper(
       status = await scraper.getUserStatus();
     }
 
-    const storedUser = toStoredUser(user.userId, user.name, status);
+    const storedUser = toStoredUser(user.cardNo, user.name, status);
     updatedUsers.push(storedUser);
     notices.push(
       ...findReservationNotices(
-        user.userId,
+        user.cardNo,
         storedUser.reservedBooks,
-        previousUsers.get(user.userId)?.reservedBooks ?? [],
+        previousUsers.get(user.cardNo)?.reservedBooks ?? [],
       ),
       ...findReturnNotices(
-        user.userId,
+        user.cardNo,
         status.borrowedBooks,
         extendedBarcodes,
         today,
@@ -96,8 +96,8 @@ export async function runKeeper(
   await dependencies.statusStore.save(snapshot);
 
   const pushResults = await Promise.allSettled(
-    notices.map(({ userId, notice }) =>
-      dependencies.pushSender.send(userId, notice),
+    notices.map(({ cardNo, notice }) =>
+      dependencies.pushSender.send(cardNo, notice),
     ),
   );
   const pushFailures = pushResults.flatMap((result) =>
@@ -126,12 +126,12 @@ function daysUntil(
 }
 
 function toStoredUser(
-  userId: string,
+  cardNo: string,
   name: string,
   status: UserStatus,
 ): StoredUserStatus {
   return {
-    userId,
+    cardNo,
     name,
     borrowedBooks: status.borrowedBooks.map(toStoredBorrowedBook),
     reservedBooks: status.reservedBooks.map(toStoredReservedBook),
@@ -160,10 +160,10 @@ function toStoredReservedBook(book: ReservedBook): StoredReservedBook {
 }
 
 function findReservationNotices(
-  userId: string,
+  cardNo: string,
   current: StoredReservedBook[],
   previous: StoredReservedBook[],
-): { userId: string; notice: PushNotice }[] {
+): { cardNo: string; notice: PushNotice }[] {
   return current.flatMap((book) => {
     if (book.holdExpiresOn === null) {
       return [];
@@ -180,7 +180,7 @@ function findReservationNotices(
 
     return [
       {
-        userId,
+        cardNo,
         notice: {
           type: 'reservation-ready',
           title: '予約した本が取置済みです',
@@ -194,12 +194,12 @@ function findReservationNotices(
 }
 
 function findReturnNotices(
-  userId: string,
+  cardNo: string,
   books: BorrowedBook[],
   extendedBarcodes: Set<string>,
   today: Temporal.PlainDate,
   extensionWindowDays: number,
-): { userId: string; notice: PushNotice }[] {
+): { cardNo: string; notice: PushNotice }[] {
   return books.flatMap((book) => {
     if (extendedBarcodes.has(book.barcode)) {
       return [];
@@ -211,7 +211,7 @@ function findReturnNotices(
 
     return [
       {
-        userId,
+        cardNo,
         notice: {
           type: 'return-due',
           title: '返却期限が近づいています',

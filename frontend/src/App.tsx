@@ -510,7 +510,7 @@ function HomePage({
               {dueBooks.slice(0, 3).map(({ user, book, days }) => (
                 <div
                   className="compact-book"
-                  key={`${user.userId}-${book.barcode}`}
+                  key={`${user.cardNo}-${book.barcode}`}
                 >
                   <span className="mini-book-cover cover-green">
                     <BookOpen size={17} />
@@ -564,7 +564,7 @@ function HomePage({
               {readyBooks.slice(0, 3).map(({ user, book }) => (
                 <div
                   className="compact-book"
-                  key={`${user.userId}-${book.title}-${book.reservedOn}`}
+                  key={`${user.cardNo}-${book.title}-${book.reservedOn}`}
                 >
                   <span className="mini-book-cover cover-peach">
                     <BookMarked size={17} />
@@ -678,7 +678,7 @@ function BorrowedPage({
 }) {
   const [selectedUser, setSelectedUser] = useState('all');
   const books = users
-    .filter((user) => selectedUser === 'all' || user.userId === selectedUser)
+    .filter((user) => selectedUser === 'all' || user.cardNo === selectedUser)
     .flatMap((user) => user.borrowedBooks.map((book) => ({ user, book })))
     .sort(
       (a, b) => daysUntil(a.book.returnDate) - daysUntil(b.book.returnDate),
@@ -707,7 +707,7 @@ function BorrowedPage({
         <div className="book-grid">
           {books.map(({ user, book }) => (
             <BorrowedBookCard
-              key={`${user.userId}-${book.barcode}`}
+              key={`${user.cardNo}-${book.barcode}`}
               user={user}
               book={book}
             />
@@ -789,7 +789,7 @@ function BorrowedBookCard({
 function ReservationsPage({ users }: { users: LibraryUser[] }) {
   const [selectedUser, setSelectedUser] = useState('all');
   const books = users
-    .filter((user) => selectedUser === 'all' || user.userId === selectedUser)
+    .filter((user) => selectedUser === 'all' || user.cardNo === selectedUser)
     .flatMap((user) => user.reservedBooks.map((book) => ({ user, book })))
     .sort((a, b) => {
       const readyOrder =
@@ -821,7 +821,7 @@ function ReservationsPage({ users }: { users: LibraryUser[] }) {
         <div className="reservation-list">
           {books.map(({ user, book }) => (
             <ReservationCard
-              key={`${user.userId}-${book.title}-${book.reservedOn}`}
+              key={`${user.cardNo}-${book.title}-${book.reservedOn}`}
               user={user}
               book={book}
             />
@@ -896,10 +896,10 @@ function ReservationCard({
 }
 
 function BarcodePage({ users }: { users: LibraryUser[] }) {
-  const [selectedUserId, setSelectedUserId] = useState(users[0]?.userId ?? '');
+  const [selectedCardNo, setSelectedCardNo] = useState(users[0]?.cardNo ?? '');
   const selectedUser =
-    users.find((user) => user.userId === selectedUserId) ?? users[0];
-  const cardNumber = selectedUser?.cardNo ?? selectedUser?.cardNumber;
+    users.find((user) => user.cardNo === selectedCardNo) ?? users[0];
+  const cardNumber = selectedUser?.cardNo;
 
   useEffect(() => {
     if (!cardNumber) return;
@@ -961,11 +961,11 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
           <div className="member-tabs" role="tablist" aria-label="利用者を選択">
             {users.map((user, index) => (
               <button
-                key={user.userId}
-                className={`member-tab ${selectedUser.userId === user.userId ? 'selected' : ''}`}
+                key={user.cardNo}
+                className={`member-tab ${selectedUser.cardNo === user.cardNo ? 'selected' : ''}`}
                 role="tab"
-                aria-selected={selectedUser.userId === user.userId}
-                onClick={() => setSelectedUserId(user.userId)}
+                aria-selected={selectedUser.cardNo === user.cardNo}
+                onClick={() => setSelectedCardNo(user.cardNo)}
               >
                 <span className={`avatar avatar-${index % 4}`}>
                   {user.name.slice(0, 1)}
@@ -1059,7 +1059,7 @@ function UserFilter({
 }: {
   users: LibraryUser[];
   selected: string;
-  onChange: (userId: string) => void;
+  onChange: (cardNo: string) => void;
 }) {
   return (
     <label className="filter-select">
@@ -1070,7 +1070,7 @@ function UserFilter({
       >
         <option value="all">家族全員</option>
         {users.map((user) => (
-          <option value={user.userId} key={user.userId}>
+          <option value={user.cardNo} key={user.cardNo}>
             {user.name}
           </option>
         ))}
