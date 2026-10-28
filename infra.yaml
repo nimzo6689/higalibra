@@ -226,7 +226,6 @@ Resources:
         - custom:cardNo
       WriteAttributes:
         - email
-        - email_verified
       CallbackURLs:
         - !Sub 'https://${MeshDistribution.DomainName}/'
       LogoutURLs:
