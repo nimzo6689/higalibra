@@ -99,7 +99,7 @@ let parameters = [
 # CloudFormationスタックとLambda関数をデプロイします。
 ^aws cloudformation deploy --template-file infra.yaml --stack-name $env.STACK_NAME --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset --parameter-overrides ...$parameters
 
-# スタック出力を取得し、後続ステップで使う環境変数としてGitHub Actionsに渡します。
+# スタック出力を取得します。
 let stack_outputs = (
   ^aws cloudformation describe-stacks --stack-name $env.STACK_NAME --query 'Stacks[0].Outputs' --output json |
     from json |
@@ -107,10 +107,7 @@ let stack_outputs = (
       $result | insert $output.OutputKey $output.OutputValue
     }
 )
-let environment = {
-  DEPLOY_BUCKET: $bucket
-  MESH_BUCKET: $stack_outputs.MeshBucketName
-  DISTRIBUTION_ID: $stack_outputs.MeshDistributionId
+let frontend_environment = {
   VITE_COGNITO_DOMAIN: $stack_outputs.CognitoHostedUiDomain
   VITE_COGNITO_CLIENT_ID: $stack_outputs.CognitoUserPoolClientId
   VITE_COGNITO_REDIRECT_URI: $stack_outputs.MeshUrl
@@ -118,15 +115,11 @@ let environment = {
   VITE_PUSH_API_URL: $stack_outputs.PushFunctionUrl
   VITE_VAPID_PUBLIC_KEY: $env.VAPID_PUBLIC_KEY
 }
-$environment |
-  transpose name value |
-  each {|entry| $"($entry.name)=($entry.value)"} |
-  str join (char newline) |
-  $"($in)(char newline)" |
-  save --append $env.GITHUB_ENV
 
-# PWAをビルドしてS3へ公開し、CloudFrontのキャッシュを無効化します。
-^pnpm --filter @higalibra/mesh build
+# PWAをスタック固有の設定でビルドしてS3へ公開し、CloudFrontのキャッシュを無効化します。
+with-env $frontend_environment {
+  ^pnpm --filter @higalibra/mesh build
+}
 let deployment = {
   bucket: $"s3://($stack_outputs.MeshBucketName)"
   distribution_id: $stack_outputs.MeshDistributionId
