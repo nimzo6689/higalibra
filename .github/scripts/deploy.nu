@@ -77,6 +77,8 @@ for upload in $uploads {
 let required_variables = [
   { name: KEEPER_PARAMETER_NAME, value: $env.KEEPER_PARAMETER_NAME }
   { name: COGNITO_DOMAIN_PREFIX, value: $env.COGNITO_DOMAIN_PREFIX }
+  { name: GOOGLE_OAUTH_CLIENT_ID, value: $env.GOOGLE_OAUTH_CLIENT_ID }
+  { name: GOOGLE_OAUTH_CLIENT_SECRET, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
   { name: VAPID_PUBLIC_KEY, value: $env.VAPID_PUBLIC_KEY }
 ]
 let missing = $required_variables | where {|variable| $variable.value | is-empty }
@@ -94,6 +96,8 @@ let parameters = [
   { name: KeeperParameterName, value: $env.KEEPER_PARAMETER_NAME }
   { name: AllowedUserIds, value: $env.ALLOWED_USER_IDS }
   { name: HostedUiDomainPrefix, value: $env.COGNITO_DOMAIN_PREFIX }
+  { name: GoogleOAuthClientId, value: $env.GOOGLE_OAUTH_CLIENT_ID }
+  { name: GoogleOAuthClientSecret, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
 ] | each {|parameter| $"($parameter.name)=($parameter.value)" }
 
 # CloudFormationスタックとLambda関数をデプロイします。

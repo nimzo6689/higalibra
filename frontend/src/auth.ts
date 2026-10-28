@@ -41,6 +41,7 @@ export async function beginLogin(
     client_id: configuration.clientId,
     response_type: 'code',
     scope: 'openid email profile',
+    identity_provider: 'Google',
     redirect_uri: configuration.redirectUri,
     state,
     code_challenge: challenge,

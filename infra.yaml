@@ -25,6 +25,13 @@ Parameters:
     Type: String
     Description: Globally unique Cognito Hosted UI domain prefix.
     AllowedPattern: '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?'
+  GoogleOAuthClientId:
+    Type: String
+    Description: OAuth client ID for the Google identity provider.
+  GoogleOAuthClientSecret:
+    Type: String
+    NoEcho: true
+    Description: OAuth client secret for the Google identity provider.
   StatusKey:
     Type: String
     Default: user_status.json
@@ -183,8 +190,23 @@ Resources:
           - Name: verified_email
             Priority: 1
 
+  GoogleIdentityProvider:
+    Type: AWS::Cognito::UserPoolIdentityProvider
+    Properties:
+      ProviderName: Google
+      ProviderType: Google
+      UserPoolId: !Ref CognitoUserPool
+      ProviderDetails:
+        client_id: !Ref GoogleOAuthClientId
+        client_secret: !Ref GoogleOAuthClientSecret
+        authorize_scopes: openid email profile
+      AttributeMapping:
+        email: email
+        email_verified: email_verified
+
   CognitoUserPoolClient:
     Type: AWS::Cognito::UserPoolClient
+    DependsOn: GoogleIdentityProvider
     Properties:
       ClientName: !Sub '${AWS::StackName}-mesh'
       UserPoolId: !Ref CognitoUserPool
@@ -204,12 +226,13 @@ Resources:
         - custom:cardNo
       WriteAttributes:
         - email
+        - email_verified
       CallbackURLs:
         - !Sub 'https://${MeshDistribution.DomainName}/'
       LogoutURLs:
         - !Sub 'https://${MeshDistribution.DomainName}/'
       SupportedIdentityProviders:
-        - COGNITO
+        - Google
 
   CognitoUserPoolDomain:
     Type: AWS::Cognito::UserPoolDomain

@@ -31,17 +31,26 @@ Nushell を使用します。デプロイは `main` への push 時に実行さ�
    Secret に手動登録してください。実行環境には pnpm の依存関係と、対象 AWS
    アカウントの SSM SecureString 読み書き権限が必要です。
 
-4. 次の GitHub Actions リポジトリ Secrets を設定します。
+4. Google Cloud Console で Web application の OAuth クライアントを作成します。
+   承認済みのリダイレクト URI に
+   `https://<COGNITO_DOMAIN_PREFIX>.auth.<AWS_REGION>.amazoncognito.com/oauth2/idpresponse`
+   を登録します（AWS リージョンを省略した場合は `ap-northeast-1`）。
+   発行されたクライアント ID とクライアント シークレットを、それぞれ
+   `GOOGLE_OAUTH_CLIENT_ID` と `GOOGLE_OAUTH_CLIENT_SECRET` として GitHub Actions
+   リポジトリ Secrets に登録してください。
+5. 次の GitHub Actions リポジトリ Secrets を設定します。
    - `AWS_REGION`（省略可。既定値は `ap-northeast-1`）
    - `COGNITO_DOMAIN_PREFIX`（必須。全体で一意な小文字の Cognito ドメイン）
+   - `GOOGLE_OAUTH_CLIENT_ID`（必須。Google OAuth クライアント ID）
+   - `GOOGLE_OAUTH_CLIENT_SECRET`（必須。Google OAuth クライアント シークレット）
    - `VAPID_PUBLIC_KEY`（必須。Parameter Store に設定した鍵と対になる公開鍵）
    - `COGNITO_ALLOWED_USER_IDS`（Cognito ユーザー作成後に設定。下記参照）
-5. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
+6. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
    購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
    初回実行では、許可リストが設定されるまで API リクエストを拒否する初期値が使われます。
    そのため、家族の利用者 ID を設定するまで API リクエストは拒否されます。
-6. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
+7. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
    作成し、対応する図書館カード番号を `custom:cardNo` 属性に設定します。CLI の例：
 
    ```sh
@@ -54,11 +63,28 @@ Nushell を使用します。デプロイは `main` への push 時に実行さ�
      --user-attributes Name=custom:cardNo,Value=<cardNo>
    ```
 
+   Google ログインを既存の Cognito ユーザーに紐付ける場合は、
+   `admin-link-provider-for-user` を使い、Google アカウントの `sub` を既存ユーザーに
+   リンクしてください。リンク後も既存ユーザーの `sub` と `custom:cardNo` が維持されます。
+   例では Google の `sub` を `GOOGLE_SUB`、既存ユーザーのメールアドレスを
+   `MEMBER_EMAIL` としています。
+
+   ```sh
+   aws cognito-idp admin-link-provider-for-user \
+     --user-pool-id <CognitoUserPoolId output> \
+     --destination-user ProviderName=Cognito,ProviderAttributeValue=MEMBER_EMAIL \
+     --source-user ProviderName=Google,ProviderAttributeName=Cognito_Subject,ProviderAttributeValue=GOOGLE_SUB
+   ```
+
+   Google アカウントの `sub` は Google の OpenID Connect ユーザー情報から確認します。
+   Google アカウントのメールアドレスと既存ユーザーのメールアドレスが一致することを
+   確認してください。リンクしない場合は Google ログイン時に別ユーザーが作成され、
+   既存の利用者 ID 許可リストでは API を利用できません。
+
    各ユーザーの `sub` を取得し、4人分の `sub` をカンマ区切りで
    `COGNITO_ALLOWED_USER_IDS` Secret に設定して、ワークフローをもう一度実行してください。
    `custom:cardNo` はアプリから変更できず、Cognito ID トークンに含まれます。
-   必ず管理者権限で設定してください。
-   ユーザーの恒久パスワードは Cognito コンソールまたは `admin-set-user-password` で設定します。
+   ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
 PWA はその URL と同一のオリジン、Cognito Hosted UI、および認証済みの Push Function URL

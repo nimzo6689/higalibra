@@ -1178,7 +1178,7 @@ function LoginScreen({
           onClick={onLogin}
           disabled={!configured}
         >
-          {configured ? 'ログインしてはじめる' : 'ログイン設定が必要です'}
+          {configured ? 'Google でログイン' : 'ログイン設定が必要です'}
           <ArrowRight size={17} />
         </button>
         {!configured && (

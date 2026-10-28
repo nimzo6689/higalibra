@@ -1,7 +1,7 @@
 # Mesh
 
-家族向けの貸出・予約状況 PWA です。Cognito Hosted UI の Authorization Code
-Grant + PKCE でログインし、状態 JSON と Web Push 購読 API を利用します。
+家族向けの貸出・予約状況 PWA です。Cognito Hosted UI の Google 認証を使い、
+Authorization Code Grant + PKCE でログインして状態 JSON と Web Push 購読 API を利用します。
 
 ## 設定
 
@@ -16,9 +16,12 @@ Grant + PKCE でログインし、状態 JSON と Web Push 購読 API を利用�
 | `VITE_PUSH_API_URL`         | Push Function URL のベース URL                                |
 | `VITE_VAPID_PUBLIC_KEY`     | Push API と対になる VAPID 公開鍵                              |
 
-Cognito App Client は秘密鍵なしの public client とし、Authorization Code Grant と
-`openid email profile` スコープを有効にしてください。コールバック URL とサインアウト
-URL には `VITE_COGNITO_REDIRECT_URI` を登録します。状態 JSON の配信元は、このアプリの
+Cognito App Client は秘密鍵なしの public client とし、Google Identity Provider と
+Authorization Code Grant、`openid email profile` スコープを有効にしてください。
+Google OAuth クライアントのリダイレクト URI には
+`https://<Cognito Hosted UI domain>/oauth2/idpresponse` を登録します。Cognito の
+コールバック URL とサインアウト URL には `VITE_COGNITO_REDIRECT_URI` を登録します。
+状態 JSON の配信元は、このアプリの
 origin からの CORS と `Authorization` ヘッダーを許可し、ID トークンで利用者を認証
 してください。Push Function URL は `/subscriptions` へ POST / DELETE を転送し、
 `x-cognito-id-token` ヘッダーを Lambda に渡す設定が必要です。
