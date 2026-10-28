@@ -100,7 +100,8 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
 
    各ユーザーの `sub` を取得し、4人分の `sub` をカンマ区切りで
    `COGNITO_ALLOWED_USER_IDS` Secret に設定して、ワークフローをもう一度実行してください。
-   `custom:cardNo` はアプリから変更できず、Cognito ID トークンに含まれます。
+   `custom:cardNo` はアプリから変更できず、Push API が購読先を利用者に紐付けるために
+   Cognito ID トークンから検証します。`/status` の取得は許可済み `sub` の検証のみで行います。
    ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。

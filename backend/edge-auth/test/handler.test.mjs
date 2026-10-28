@@ -38,7 +38,9 @@ function cloudFrontEvent(uri, token, method = 'GET', extraHeaders = {}) {
             method,
             uri,
             headers: {
-              authorization: [{ key: 'Authorization', value: `Bearer ${token}` }],
+              authorization: [
+                { key: 'Authorization', value: `Bearer ${token}` },
+              ],
               ...extraHeaders,
             },
           },
@@ -78,6 +80,22 @@ test('authenticates allowed Cognito users and rewrites status to the S3 object',
   assert.equal(result.headers['x-authenticated-sub'][0].value, userId);
   assert.equal(result.headers['x-authenticated-card-no'][0].value, cardNo);
   assert.equal(headResult.uri, '/user_status.json');
+});
+
+test('allows status access without a card number but requires it for subscriptions', async () => {
+  const tokenWithoutCardNo = createToken({ 'custom:cardNo': undefined });
+  const handler = createHandler();
+  const statusResult = await handler(
+    cloudFrontEvent('/status', tokenWithoutCardNo),
+  );
+  const subscriptionsResult = await handler(
+    cloudFrontEvent('/subscriptions', tokenWithoutCardNo, 'POST'),
+  );
+
+  assert.equal(statusResult.uri, '/user_status.json');
+  assert.equal(statusResult.headers['x-authenticated-sub'][0].value, userId);
+  assert.equal(statusResult.headers['x-authenticated-card-no'], undefined);
+  assert.equal(subscriptionsResult.status, '401');
 });
 
 test('rejects invalid signatures and users outside the allowlist', async () => {

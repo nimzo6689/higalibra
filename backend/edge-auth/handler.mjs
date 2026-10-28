@@ -43,6 +43,7 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         issuer,
         allowedUserIds,
         loadJwks,
+        requireCardNo: request.uri === '/subscriptions',
       });
     } catch (error) {
       if (error instanceof InvalidTokenError) {
@@ -57,9 +58,11 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
     request.headers['x-authenticated-sub'] = [
       { key: 'X-Authenticated-Sub', value: claims.sub },
     ];
-    request.headers['x-authenticated-card-no'] = [
-      { key: 'X-Authenticated-Card-No', value: claims['custom:cardNo'] },
-    ];
+    if (typeof claims['custom:cardNo'] === 'string') {
+      request.headers['x-authenticated-card-no'] = [
+        { key: 'X-Authenticated-Card-No', value: claims['custom:cardNo'] },
+      ];
+    }
 
     if (request.uri === '/status') {
       request.uri = `/${configuration.statusKey}`;
@@ -84,8 +87,9 @@ async function verifyIdToken(token, configuration) {
     claims.aud !== configuration.clientId ||
     typeof claims.sub !== 'string' ||
     !configuration.allowedUserIds.has(claims.sub) ||
-    typeof claims['custom:cardNo'] !== 'string' ||
-    claims['custom:cardNo'].trim() === '' ||
+    (configuration.requireCardNo &&
+      (typeof claims['custom:cardNo'] !== 'string' ||
+        claims['custom:cardNo'].trim() === '')) ||
     !Number.isInteger(claims.exp) ||
     claims.exp <= Math.floor(Date.now() / 1000) ||
     !Number.isInteger(claims.iat) ||
