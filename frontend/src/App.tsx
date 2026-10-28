@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import {
   ArrowDownWideNarrow,
@@ -61,6 +61,7 @@ export default function App() {
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
   const [pushMessage, setPushMessage] = useState('');
+  const statusRequest = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -89,30 +90,62 @@ export default function App() {
     };
   }, []);
 
+  const refreshStatus = useCallback(() => {
+    statusRequest.current?.abort();
+    statusRequest.current = null;
+    if (!session) {
+      setIsLoading(false);
+      setDataError('利用状況の接続設定がありません。');
+      return;
+    }
+
+    const statusUrl = import.meta.env.VITE_STATUS_URL?.trim();
+    if (!statusUrl) {
+      setDataError('VITE_STATUS_URL が設定されていません。');
+      setIsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    statusRequest.current = controller;
+    setIsLoading(true);
+    setDataError('');
+    fetchUserStatus(statusUrl, session.idToken, controller.signal)
+      .then((nextSnapshot) => {
+        if (!controller.signal.aborted) setSnapshot(nextSnapshot);
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setDataError(errorMessage(error));
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          statusRequest.current = null;
+          setIsLoading(false);
+        }
+      });
+  }, [session]);
+
   useEffect(() => {
     if (!session) {
       setSnapshot(null);
       return;
     }
-    const statusUrl = import.meta.env.VITE_STATUS_URL?.trim();
-    if (!statusUrl) {
-      setDataError('VITE_STATUS_URL が設定されていません。');
-      return;
-    }
 
-    const controller = new AbortController();
-    setIsLoading(true);
-    setDataError('');
-    fetchUserStatus(statusUrl, session.idToken, controller.signal)
-      .then(setSnapshot)
-      .catch((error: unknown) => {
-        if (!controller.signal.aborted) setDataError(errorMessage(error));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setIsLoading(false);
-      });
-    return () => controller.abort();
-  }, [session]);
+    void refreshStatus();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshStatus();
+    };
+    const intervalId = window.setInterval(refreshWhenVisible, 5 * 60 * 1000);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    window.addEventListener('focus', refreshWhenVisible);
+    return () => {
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+      window.removeEventListener('focus', refreshWhenVisible);
+      statusRequest.current?.abort();
+      statusRequest.current = null;
+    };
+  }, [session, refreshStatus]);
 
   useEffect(() => {
     function onPopState() {
@@ -136,22 +169,6 @@ export default function App() {
     setRoute(nextRoute);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
-
-  const refreshStatus = useCallback(() => {
-    setSnapshot(null);
-    setDataError('');
-    setIsLoading(true);
-    const statusUrl = import.meta.env.VITE_STATUS_URL?.trim();
-    if (!statusUrl || !session) {
-      setIsLoading(false);
-      setDataError('利用状況の接続設定がありません。');
-      return;
-    }
-    void fetchUserStatus(statusUrl, session.idToken)
-      .then(setSnapshot)
-      .catch((error: unknown) => setDataError(errorMessage(error)))
-      .finally(() => setIsLoading(false));
-  }, [session]);
 
   async function togglePush() {
     if (!session) return;
