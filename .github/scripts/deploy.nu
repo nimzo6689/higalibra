@@ -27,7 +27,7 @@ let artifacts = [
   { package: '@higalibra/push', path: '.artifacts/push', name: 'push' }
 ]
 for artifact in $artifacts {
-  ^pnpm --filter $artifact.package deploy --prod $artifact.path
+  ^pnpm --filter $artifact.package deploy --prod $artifact.path --config.node-linker=hoisted
   '{"type":"module"}' | save --force $"($artifact.path)/package.json"
   do {
     cd $artifact.path

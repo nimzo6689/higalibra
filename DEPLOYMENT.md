@@ -6,6 +6,10 @@ CloudFront 配下の非公開 S3 バケットに PWA を公開します。ワー
 Nushell を使用します。デプロイは `main` への push 時に実行されるほか、
 `workflow_dispatch` から手動で開始できます。
 
+Lambda の production dependencies は `node-linker=hoisted` で配置します。これにより、
+Scraping や Push などの workspace package が使う依存関係も Lambda の `node_modules`
+直下から解決できます。
+
 ## 初回セットアップ
 
 1. GitHub Actions の OIDC 用に AWS IAM ロールを作成し、リポジトリ Secret
