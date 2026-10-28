@@ -267,6 +267,9 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt StatusBucket.Arn
+              - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
@@ -348,6 +351,9 @@ Resources:
           PolicyDocument:
             Version: '2012-10-17'
             Statement:
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt StatusBucket.Arn
               - Effect: Allow
                 Action:
                   - s3:GetObject
@@ -438,6 +444,9 @@ Resources:
               - Effect: Allow
                 Action: s3:GetObject
                 Resource: !Sub '${StatusBucket.Arn}/${StatusKey}'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt StatusBucket.Arn
 
   PushFunction:
     Type: AWS::Lambda::Function

@@ -12,7 +12,9 @@ Scraping や Push などの workspace package が使う依存関係も Lambda �
 
 Lambda の IAM 権限を変更した場合は、GitHub Actions のデプロイを再実行して
 CloudFormation スタックを更新してください。Lambda ZIP のみを差し替えても IAM
-ロールのポリシーは更新されません。
+ロールのポリシーは更新されません。利用状況・調査履歴のオブジェクト権限に加え、
+オブジェクトが未作成の場合の判定に必要な対象バケットの `s3:ListBucket` 権限も
+Keeper、Dash、Push の実行ロールに設定します。
 
 ## 初回セットアップ
 
