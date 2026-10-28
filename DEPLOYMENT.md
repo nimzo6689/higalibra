@@ -10,6 +10,10 @@ Lambda の production dependencies は `node-linker=hoisted` で配置します�
 Scraping や Push などの workspace package が使う依存関係も Lambda の `node_modules`
 直下から解決できます。
 
+Lambda の IAM 権限を変更した場合は、GitHub Actions のデプロイを再実行して
+CloudFormation スタックを更新してください。Lambda ZIP のみを差し替えても IAM
+ロールのポリシーは更新されません。
+
 ## 初回セットアップ
 
 1. GitHub Actions の OIDC 用に AWS IAM ロールを作成し、リポジトリ Secret
