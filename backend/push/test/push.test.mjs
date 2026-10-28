@@ -12,21 +12,7 @@ const validSubscription = {
 function createRoute() {
   const saved = [];
   const deleted = [];
-  const status = {
-    lastUpdated: '2026-10-27T05:00:00.000Z',
-    users: [],
-  };
   const route = createHandler({
-    async verifyToken(token) {
-      if (token === 'valid-token') {
-        return { sub: cognitoSub, cardNo };
-      }
-      if (token === 'other-user-token') {
-        return { sub: 'not-allowed-member', cardNo: 'other-card' };
-      }
-      return null;
-    },
-    allowedUserIds: new Set([cognitoSub]),
     now: () => new Date('2026-10-27T05:00:00.000Z'),
     subscriptions: {
       async save(...args) {
@@ -36,19 +22,17 @@ function createRoute() {
         deleted.push(args);
       },
     },
-    statusStore: {
-      async load() {
-        return status;
-      },
-    },
   });
-  return { route, saved, deleted, status };
+  return { route, saved, deleted };
 }
 
 function event(
   method,
   body,
-  headers = { 'x-cognito-id-token': 'valid-token' },
+  headers = {
+    'x-authenticated-sub': cognitoSub,
+    'x-authenticated-card-no': cardNo,
+  },
 ) {
   return {
     rawPath: '/subscriptions',
@@ -58,7 +42,7 @@ function event(
   };
 }
 
-test('registers a subscription for the authenticated family member', async () => {
+test('registers a subscription for the edge-authenticated family member', async () => {
   const { route, saved } = createRoute();
 
   const response = await route(
@@ -75,7 +59,7 @@ test('registers a subscription for the authenticated family member', async () =>
   ]);
 });
 
-test('keys subscriptions by the signed card number claim, not the Cognito sub', async () => {
+test('uses the verified card number rather than the Cognito sub', async () => {
   const { route, saved } = createRoute();
 
   const response = await route(
@@ -87,7 +71,7 @@ test('keys subscriptions by the signed card number claim, not the Cognito sub', 
   assert.notEqual(saved[0][0], cognitoSub);
 });
 
-test('deletes only the authenticated user device subscription', async () => {
+test('deletes only the edge-authenticated user device subscription', async () => {
   const { route, deleted } = createRoute();
 
   const response = await route(event('DELETE', { deviceId: 'phone-1' }));
@@ -96,56 +80,22 @@ test('deletes only the authenticated user device subscription', async () => {
   assert.deepEqual(deleted, [[cardNo, 'phone-1']]);
 });
 
-test('returns the status snapshot to an authenticated family member', async () => {
-  const { route, status } = createRoute();
-  const response = await route({
-    rawPath: '/status',
-    requestContext: { http: { method: 'GET' } },
-    headers: { authorization: 'Bearer valid-token' },
-  });
-
-  assert.equal(response.statusCode, 200);
-  assert.deepEqual(JSON.parse(response.body), status);
-});
-
-test('does not return status to an unauthenticated caller', async () => {
-  const { route } = createRoute();
-  const response = await route({
-    rawPath: '/status',
-    requestContext: { http: { method: 'GET' } },
-  });
-
-  assert.equal(response.statusCode, 401);
-});
-
-test('requires a valid ID token for family allow-listed user', async () => {
+test('requires a verified identity from the CloudFront edge authorizer', async () => {
   const { route, saved } = createRoute();
 
   const missing = await route(
     event('POST', { deviceId: 'phone-1', subscription: validSubscription }, {}),
   );
-  const invalid = await route(
+  const incompleteIdentity = await route(
     event(
       'POST',
       { deviceId: 'phone-1', subscription: validSubscription },
-      {
-        'x-cognito-id-token': 'invalid-token',
-      },
-    ),
-  );
-  const notAllowed = await route(
-    event(
-      'POST',
-      { deviceId: 'phone-1', subscription: validSubscription },
-      {
-        'x-cognito-id-token': 'other-user-token',
-      },
+      { 'x-authenticated-sub': cognitoSub },
     ),
   );
 
   assert.equal(missing.statusCode, 401);
-  assert.equal(invalid.statusCode, 401);
-  assert.equal(notAllowed.statusCode, 401);
+  assert.equal(incompleteIdentity.statusCode, 401);
   assert.equal(saved.length, 0);
 });
 

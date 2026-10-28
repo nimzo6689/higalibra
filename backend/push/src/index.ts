@@ -1,13 +1,4 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { CognitoJwtVerifier } from 'aws-jwt-verify';
-import {
-  FailedAssertionError,
-  JwtInvalidSignatureError,
-  JwtParseError,
-  JwtWithoutValidKidError,
-  KidNotFoundInJwksError,
-} from 'aws-jwt-verify/error';
 import { DynamoDbSubscriptionStore } from './subscriptions.js';
 import type {
   FunctionUrlEvent,
@@ -29,10 +20,7 @@ export type {
 } from './types.js';
 
 interface PushApiDependencies {
-  verifyToken(token: string): Promise<VerifiedUser | null>;
   subscriptions: SubscriptionStore;
-  statusStore: StatusStore;
-  allowedUserIds: ReadonlySet<string>;
   now?: () => Date;
 }
 
@@ -43,11 +31,6 @@ interface VerifiedUser {
 
 interface PushApiConfiguration {
   tableName: string;
-  statusBucket: string;
-  statusKey: string;
-  userPoolId: string;
-  clientId: string;
-  allowedUserIds: ReadonlySet<string>;
   region?: string;
 }
 
@@ -60,35 +43,20 @@ export function createHandler(dependencies: PushApiDependencies) {
   ): Promise<FunctionUrlResponse> {
     const method = (event.requestContext?.http?.method ?? '').toUpperCase();
     const path = event.rawPath ?? event.requestContext?.http?.path ?? '';
-    if (path !== '/subscriptions' && path !== '/status') {
+    if (path !== '/subscriptions') {
       return response(404, { error: 'Not found.' });
     }
-    if (
-      (path === '/subscriptions' && method !== 'POST' && method !== 'DELETE') ||
-      (path === '/status' && method !== 'GET')
-    ) {
+    if (method !== 'POST' && method !== 'DELETE') {
       return response(
         405,
         { error: 'Method not allowed.' },
-        { allow: path === '/status' ? 'GET' : 'POST, DELETE' },
+        { allow: 'POST, DELETE' },
       );
     }
 
-    const token = readIdToken(event.headers ?? {});
-    if (!token) {
-      return response(401, { error: 'Authentication is required.' });
-    }
-
-    const user = await dependencies.verifyToken(token);
-    if (!user || !dependencies.allowedUserIds.has(user.sub)) {
-      return response(401, { error: 'The ID token is not authorized.' });
-    }
-
-    if (path === '/status') {
-      const status = await dependencies.statusStore.load();
-      return status
-        ? response(200, status)
-        : response(404, { error: 'User status is not available yet.' });
+    const user = readAuthenticatedUser(event.headers ?? {});
+    if (!user) {
+      return response(401, { error: 'Authenticated identity is missing.' });
     }
 
     let body: unknown;
@@ -140,88 +108,13 @@ export async function handler(
 }
 
 function createConfiguredHandler(configuration: PushApiConfiguration) {
-  const verifier = CognitoJwtVerifier.create({
-    userPoolId: configuration.userPoolId,
-    tokenUse: 'id',
-    clientId: configuration.clientId,
-  });
   const client = new DynamoDBClient({ region: configuration.region });
-  const s3 = new S3Client({ region: configuration.region });
   return createHandler({
-    async verifyToken(token) {
-      try {
-        const claims = await verifier.verify(token);
-        const cardNo = claims['custom:cardNo'];
-        return typeof claims.sub === 'string' &&
-          typeof cardNo === 'string' &&
-          cardNo.trim() !== ''
-          ? { sub: claims.sub, cardNo }
-          : null;
-      } catch (error) {
-        if (isInvalidIdToken(error)) {
-          return null;
-        }
-        throw error;
-      }
-    },
     subscriptions: new DynamoDbSubscriptionStore(
       client,
       configuration.tableName,
     ),
-    statusStore: new S3UserStatusStore(
-      s3,
-      configuration.statusBucket,
-      configuration.statusKey,
-    ),
-    allowedUserIds: configuration.allowedUserIds,
   });
-}
-
-interface StatusStore {
-  load(): Promise<Record<string, unknown> | null>;
-}
-
-class S3UserStatusStore implements StatusStore {
-  constructor(
-    private readonly client: S3Client,
-    private readonly bucket: string,
-    private readonly key: string,
-  ) {}
-
-  async load(): Promise<Record<string, unknown> | null> {
-    try {
-      const result = await this.client.send(
-        new GetObjectCommand({ Bucket: this.bucket, Key: this.key }),
-      );
-      if (!result.Body) {
-        throw new Error('The user status object has no body.');
-      }
-      const value: unknown = JSON.parse(await result.Body.transformToString());
-      if (
-        !isRecord(value) ||
-        typeof value.lastUpdated !== 'string' ||
-        !Array.isArray(value.users)
-      ) {
-        throw new Error('The user status object has an invalid JSON shape.');
-      }
-      return value;
-    } catch (error) {
-      if (isRecord(error) && error.name === 'NoSuchKey') {
-        return null;
-      }
-      throw error;
-    }
-  }
-}
-
-function isInvalidIdToken(error: unknown): boolean {
-  return (
-    error instanceof FailedAssertionError ||
-    error instanceof JwtInvalidSignatureError ||
-    error instanceof JwtParseError ||
-    error instanceof JwtWithoutValidKidError ||
-    error instanceof KidNotFoundInJwksError
-  );
 }
 
 function readConfiguration(
@@ -229,28 +122,8 @@ function readConfiguration(
 ): PushApiConfiguration {
   return {
     tableName: requiredEnvironmentValue(environment, 'SUBSCRIPTIONS_TABLE'),
-    statusBucket: requiredEnvironmentValue(environment, 'STATUS_BUCKET'),
-    statusKey: environment.STATUS_KEY?.trim() || 'user_status.json',
-    userPoolId: requiredEnvironmentValue(environment, 'COGNITO_USER_POOL_ID'),
-    clientId: requiredEnvironmentValue(environment, 'COGNITO_CLIENT_ID'),
-    allowedUserIds: parseAllowedUserIds(
-      requiredEnvironmentValue(environment, 'ALLOWED_USER_IDS'),
-    ),
     region: environment.AWS_REGION,
   };
-}
-
-function parseAllowedUserIds(value: string): ReadonlySet<string> {
-  const userIds = new Set(
-    value
-      .split(',')
-      .map((userId) => userId.trim())
-      .filter(Boolean),
-  );
-  if (userIds.size === 0) {
-    throw new Error('ALLOWED_USER_IDS must contain at least one user ID.');
-  }
-  return userIds;
 }
 
 function requiredEnvironmentValue(
@@ -264,19 +137,18 @@ function requiredEnvironmentValue(
   return value;
 }
 
-function readIdToken(
+function readAuthenticatedUser(
   headers: Record<string, string | undefined>,
-): string | null {
+): VerifiedUser | null {
   const normalizedHeaders = new Map(
     Object.entries(headers).map(([name, value]) => [
       name.toLowerCase(),
       value?.trim(),
     ]),
   );
-  const token =
-    normalizedHeaders.get('x-cognito-id-token') ??
-    normalizedHeaders.get('authorization')?.replace(/^Bearer\s+/i, '');
-  return token || null;
+  const sub = normalizedHeaders.get('x-authenticated-sub');
+  const cardNo = normalizedHeaders.get('x-authenticated-card-no');
+  return sub && cardNo ? { sub, cardNo } : null;
 }
 
 function parseBody(event: FunctionUrlEvent): unknown {

@@ -40,8 +40,17 @@ Parameters:
     Type: String
     Default: dash_research_history.json
     Description: S3 object key for Dash's research history.
+  EdgeAuthFunctionVersionArn:
+    Type: String
+    Default: NONE
+    Description: Published Lambda@Edge authorizer version ARN, or NONE during initial provisioning.
 
 Conditions:
+  HasEdgeAuthFunction:
+    Fn::Not:
+      - Fn::Equals:
+          - Ref: EdgeAuthFunctionVersionArn
+          - NONE
   KeeperParameterNameIsArn:
     Fn::Equals:
       - Fn::Select:
@@ -111,6 +120,43 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
+  StatusOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-status-oac'
+        Description: CloudFront access to the private status snapshot.
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PushOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-push-oac'
+        Description: CloudFront signed access to the Push Lambda URL.
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  PushOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub '${AWS::StackName}-push-origin-requests'
+        Comment: Forward only the verified identity and request content to Push.
+        HeadersConfig:
+          HeaderBehavior: allow-list
+          Headers:
+            - content-type
+            - x-authenticated-card-no
+            - x-authenticated-sub
+        CookiesConfig:
+          CookieBehavior: none
+        QueryStringsConfig:
+          QueryStringBehavior: none
+
   MeshDistribution:
     Type: AWS::CloudFront::Distribution
     Properties:
@@ -126,6 +172,61 @@ Resources:
             OriginAccessControlId: !GetAtt MeshOriginAccessControl.Id
             S3OriginConfig:
               OriginAccessIdentity: ''
+          - Id: StatusS3Origin
+            DomainName: !GetAtt StatusBucket.RegionalDomainName
+            OriginAccessControlId: !GetAtt StatusOriginAccessControl.Id
+            S3OriginConfig:
+              OriginAccessIdentity: ''
+          - Id: PushLambdaOrigin
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt: PushFunctionUrl.FunctionUrl
+            OriginAccessControlId: !GetAtt PushOriginAccessControl.Id
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
+        CacheBehaviors:
+          Fn::If:
+            - HasEdgeAuthFunction
+            - - PathPattern: /status
+                TargetOriginId: StatusS3Origin
+                ViewerProtocolPolicy: redirect-to-https
+                AllowedMethods:
+                  - GET
+                  - HEAD
+                CachedMethods:
+                  - GET
+                  - HEAD
+                Compress: true
+                CachePolicyId: 4135ea2d-6df8-44a4-9df3-4b5fc59f2a89
+                LambdaFunctionAssociations:
+                  - EventType: viewer-request
+                    LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
+              - PathPattern: /subscriptions*
+                TargetOriginId: PushLambdaOrigin
+                ViewerProtocolPolicy: redirect-to-https
+                AllowedMethods:
+                  - GET
+                  - HEAD
+                  - OPTIONS
+                  - PUT
+                  - POST
+                  - PATCH
+                  - DELETE
+                CachedMethods:
+                  - GET
+                  - HEAD
+                Compress: true
+                CachePolicyId: 4135ea2d-6df8-44a4-9df3-4b5fc59f2a89
+                OriginRequestPolicyId: !Ref PushOriginRequestPolicy
+                LambdaFunctionAssociations:
+                  - EventType: viewer-request
+                    LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
+            - Ref: AWS::NoValue
         DefaultCacheBehavior:
           TargetOriginId: MeshS3Origin
           ViewerProtocolPolicy: redirect-to-https
@@ -165,6 +266,23 @@ Resources:
               Service: cloudfront.amazonaws.com
             Action: s3:GetObject
             Resource: !Sub '${MeshBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+
+  StatusBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref StatusBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: AllowCloudFrontReadAuthenticatedStatus
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action: s3:GetObject
+            Resource: !Sub '${StatusBucket.Arn}/${StatusKey}'
             Condition:
               StringEquals:
                 AWS:SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
@@ -441,12 +559,6 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:DeleteItem
                 Resource: !GetAtt SubscriptionsTable.Arn
-              - Effect: Allow
-                Action: s3:GetObject
-                Resource: !Sub '${StatusBucket.Arn}/${StatusKey}'
-              - Effect: Allow
-                Action: s3:ListBucket
-                Resource: !GetAtt StatusBucket.Arn
 
   PushFunction:
     Type: AWS::Lambda::Function
@@ -465,45 +577,29 @@ Resources:
       Environment:
         Variables:
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
-          STATUS_BUCKET: !Ref StatusBucket
-          STATUS_KEY: !Ref StatusKey
-          COGNITO_USER_POOL_ID: !Ref CognitoUserPool
-          COGNITO_CLIENT_ID: !Ref CognitoUserPoolClient
-          ALLOWED_USER_IDS: !Ref AllowedUserIds
 
   PushFunctionUrl:
     Type: AWS::Lambda::Url
     Properties:
-      AuthType: NONE
+      AuthType: AWS_IAM
       TargetFunctionArn: !GetAtt PushFunction.Arn
-      Cors:
-        AllowCredentials: false
-        AllowHeaders:
-          - authorization
-          - content-type
-          - x-cognito-id-token
-        AllowMethods:
-          - GET
-          - POST
-          - DELETE
-        AllowOrigins:
-          - !Sub 'https://${MeshDistribution.DomainName}'
-        MaxAge: 600
 
   PushFunctionUrlPermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref PushFunction
       Action: lambda:InvokeFunctionUrl
-      Principal: '*'
-      FunctionUrlAuthType: NONE
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+      FunctionUrlAuthType: AWS_IAM
 
   PushFunctionInvokePermission:
     Type: AWS::Lambda::Permission
     Properties:
       FunctionName: !Ref PushFunction
       Action: lambda:InvokeFunction
-      Principal: '*'
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
       InvokedViaFunctionUrl: true
 
 Outputs:
@@ -523,8 +619,11 @@ Outputs:
     Description: DynamoDB table containing Web Push subscriptions.
     Value: !Ref SubscriptionsTable
   PushFunctionUrl:
-    Description: Function URL base used by the PWA for status and subscription requests.
-    Value: !GetAtt PushFunctionUrl.FunctionUrl
+    Description: Same-origin CloudFront base URL for status and subscription requests.
+    Value: !Sub 'https://${MeshDistribution.DomainName}/'
+  StatusKey:
+    Description: S3 object key served at the authenticated /status path.
+    Value: !Ref StatusKey
   CognitoUserPoolId:
     Description: Cognito user pool ID.
     Value: !Ref CognitoUserPool

@@ -24,30 +24,32 @@
 graph LR
     OSPush["OS Push Services"]
 
-    subgraph GCP ["Google Cloud"]
-        DynamoDB["DynamoDB(利用状況・調査履歴)"]
+    subgraph AWS ["AWS"]
+        DynamoDB["DynamoDB(購読・調査履歴)"]
+        StatusS3["S3(Status JSON)"]
+        MeshS3["S3(Mesh SPA)"]
+        Cognito["Cognito"]
+        CDN["CloudFront"]
+        EDGE["Lambda@Edge(JWT検証)"]
+        Push["Lambda(Push API)"]
 
         subgraph Req1 ["要件1: 自動延長 & 通知バッチ"]
             Scheduler1["EventBridge<br/>(毎日18時実行)"]
             Job1["Lambda(Keeper)"]
             Scheduler1 --> Job1
+            Job1 --> StatusS3
             Job1 --> DynamoDB
         end
 
         subgraph Req2 ["要件2: 家族向け管理 PWA"]
             Front["PWAアプリ"]
-            EDGE["Lambda@Edge"]
-            CDN["CloudFront"]
-            Cognito["Cognito"]
-            S3["S3"]
-            Lambda["Lambda(Push)"]
-            DynamoDB["DynamoDB"]
-            Front --> EDGE
-            EDGE --> CDN
             Front --> Cognito
-            CDN --> S3
-            CDN --> Lambda
-            Lambda --> DynamoDB
+            Front --> CDN
+            CDN --> MeshS3
+            CDN --> EDGE
+            EDGE -->|/status 認証済み| StatusS3
+            EDGE -->|/subscriptions 検証済み identity| Push
+            Push --> DynamoDB
         end
 
         subgraph Req3 ["要件3: LLM自動予約バッチ"]
@@ -89,8 +91,11 @@ graph LR
 - **目的**: 家族 4 人の状況を一画面で確認でき、ネイティブアプリ感覚でホーム画面から起動・Web Push 通知を受信可能にする。
 - **構成要素**:
   - **フロントエンド**: CloudFront+S3（React による PWA / SPA 配信）
-  - **ユーザー認証**: Cognito（ログイン認証、ID トークンによる API 認証）
+  - **ユーザー認証**: Cognito Hosted UI でログインし、CloudFront の `/status` と `/subscriptions` behavior に関連付けた Lambda@Edge で ID トークンを検証する。
+  - **利用状況配信**: CloudFront → Lambda@Edge → OAC → 非公開 StatusBucket(S3)。検証後、`/status` を `user_status.json` に書き換えて配信する。
   - **サブスクリプション登録API**: Lambda(Node.js) + DynamoDB（購読情報の保存）
+  - **Push API 経路**: CloudFront → Lambda@Edge（JWT検証・検証済み利用者 claim 付与）→ OAC (`AWS_IAM`) → Push Lambda。ブラウザーから同一 origin を使うため CORS は不要。
+  - **ログイン前の配信**: Cognito 認証を開始するため、Mesh の静的 SPA shell は未ログインでも配信する。
 - **PWA & Web Push 実装要件**:
   - **Service Worker**: キャッシュ制御およびバックグラウンドでの Push イベント受信・通知ダイアログ表示を担当。
   - **VAPID 認証**: Web Push 標準規格に基づき、Secret Manager に保持した VAPID 秘密鍵を用いて送信リクエストを署名。

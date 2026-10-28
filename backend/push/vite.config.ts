@@ -16,7 +16,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: [/^@aws-sdk\//, 'aws-jwt-verify', 'web-push'],
+      external: [/^@aws-sdk\//, 'web-push'],
     },
   },
 });

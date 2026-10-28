@@ -12,8 +12,8 @@ Authorization Code Grant + PKCE でログインして状態 JSON と Web Push �
 | `VITE_COGNITO_DOMAIN`       | Cognito Hosted UI のドメイン (`https://` を含む)              |
 | `VITE_COGNITO_CLIENT_ID`    | Cognito の公開 App Client ID                                  |
 | `VITE_COGNITO_REDIRECT_URI` | Hosted UI に登録したコールバック URL。未指定時は現在の origin |
-| `VITE_STATUS_URL`           | ID トークン認証付き `/status` API の URL                      |
-| `VITE_PUSH_API_URL`         | Push Function URL のベース URL                                |
+| `VITE_STATUS_URL`           | 同一 CloudFront origin の `/status` URL                       |
+| `VITE_PUSH_API_URL`         | `/subscriptions` を配信する CloudFront の同一 origin          |
 | `VITE_VAPID_PUBLIC_KEY`     | Push API と対になる VAPID 公開鍵                              |
 
 Cognito App Client は秘密鍵なしの public client とし、Google Identity Provider と
@@ -21,11 +21,12 @@ Authorization Code Grant、`openid email profile` スコープを有効にして
 Google OAuth クライアントのリダイレクト URI には
 `https://<Cognito Hosted UI domain>/oauth2/idpresponse` を登録します。Cognito の
 コールバック URL とサインアウト URL には `VITE_COGNITO_REDIRECT_URI` を登録します。
-利用状況 JSON は、Push Function URL の `/status` から ID トークンで認証して取得します。
-Mesh から S3 バケットを直接公開・参照せず、Push API が認証後に非公開 S3 オブジェクトを
-読み込みます。アプリはログイン時に取得し、表示中の定期更新と画面復帰時にも再取得します。
-Push Function URL は `/subscriptions` へ POST / DELETE を転送し、
-`x-cognito-id-token` ヘッダーを Lambda に渡します。
+利用状況 JSON は同一 CloudFront origin の `/status` から取得します。CloudFront の
+Lambda@Edge が Cognito ID token を検証した後、非公開 StatusBucket の
+`user_status.json` を OAC 経由で返します。購読の POST / DELETE は同一 origin の
+`/subscriptions` behavior から Push Lambda に転送します。ブラウザーと API は同一 origin
+なので CORS は使用しません。アプリはログイン時に取得し、表示中の定期更新と画面復帰時にも
+再取得します。
 
 利用状況データは Keeper の `UserStatusSnapshot` 形式を使用します。利用者データに
 `cardNo` または `cardNumber` を含めるとバーコードを表示できます。貸出データに

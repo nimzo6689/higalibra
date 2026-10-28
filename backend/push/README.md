@@ -1,47 +1,44 @@
 # Push
 
-Web Push 購読の登録・解除を行う Lambda Function URL API と、Keeper / Dash
-から利用する Web Push 送信モジュールです。
+CloudFront 経由で呼び出す Web Push 購読 API と、Keeper / Dash から利用する
+Web Push 送信モジュールです。
 
 ## API
 
-Function URL (`AuthType: NONE`) を公開 API エンドポイントとして使います。
-各リクエストは Cognito ID トークンを検証し、`ALLOWED_USER_IDS` に指定した
-`sub` だけを許可します。AWS の Function URL CORS 設定で PWA の origin のみを
-許可してください。
+`/subscriptions` は CloudFront の Lambda URL origin からこの Lambda を呼び出します。
+Function URL は `AWS_IAM` と Origin Access Control (OAC) で保護し、CloudFront
+ディストリビューションだけが呼び出せます。JWT の署名・有効期限・Cognito audience と
+`ALLOWED_USER_IDS` の検証は us-east-1 の Lambda@Edge が行います。Lambda@Edge は
+検証した `sub` と `custom:cardNo` を内部ヘッダーに設定し、OAC で保護された origin
+request policy を通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
 
-4人分の Cognito `sub` を `ALLOWED_USER_IDS` に指定します。各 Cognito ユーザーには
-図書館カード番号を `custom:cardNo` 属性として設定してください。ID トークン中の
-署名済み `custom:cardNo` を Push 購読の利用者IDとして使い、リクエスト本文から
+4人分の Cognito `sub` を GitHub Actions secret `COGNITO_ALLOWED_USER_IDS` に指定します。
+各 Cognito ユーザーには図書館カード番号を `custom:cardNo` 属性として設定してください。
+購読先は Lambda@Edge
+が JWT の署名を検証して作成した `x-authenticated-card-no` で特定し、リクエスト本文から
 利用者IDを受け取らないため、別利用者の購読を登録・解除できません。
 
 | Method   | Path             | JSON body                                                                                           | 動作                               |
 | -------- | ---------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
 | `POST`   | `/subscriptions` | `{"deviceId":"...","subscription":{"endpoint":"https://...","keys":{"p256dh":"...","auth":"..."}}}` | 購読の登録・更新                   |
 | `DELETE` | `/subscriptions` | `{"deviceId":"..."}`                                                                                | ログイン中ユーザーの端末購読を解除 |
-| `GET`    | `/status`        | —                                                                                                   | S3 の利用状況 JSON を返す          |
 
-`x-cognito-id-token` に Cognito ID トークンを指定します。成功応答は JSON で返り、
-入力不正・認証失敗・未対応ルートはそれぞれ `400`・`401`・`404/405` になります。
-DynamoDB へのアクセス失敗などの内部エラーは Lambda のエラーとして表面化します。
+成功応答は JSON で返ります。入力不正は `400`、CloudFront から認証済み identity header
+が渡されない場合は `401`、未対応ルート・method は `404/405` です。DynamoDB への
+アクセス失敗などの内部エラーは Lambda のエラーとして表面化します。
 
 ## 設定
 
 | 環境変数               | 用途                                                    |
 | ---------------------- | ------------------------------------------------------- |
 | `SUBSCRIPTIONS_TABLE`  | 購読情報 DynamoDB テーブル名（パーティションキー `id`） |
-| `STATUS_BUCKET`        | `user_status.json` を保管する非公開 S3 バケット名       |
-| `STATUS_KEY`           | 状態 JSON の S3 キー（省略時 `user_status.json`）       |
-| `COGNITO_USER_POOL_ID` | Cognito User Pool ID                                    |
-| `COGNITO_CLIENT_ID`    | Cognito App Client ID                                   |
-| `ALLOWED_USER_IDS`     | 許可する Cognito `sub` をカンマ区切りで指定             |
 | `AWS_REGION`           | Lambda の標準リージョン設定を使用                       |
 
 購読レコードは `id=USER#<cardNo>#DEVICE#<deviceId>` をキーとして保存されます。
 属性は `cardNo`, `deviceId`, `endpoint`, `keys.p256dh`, `keys.auth`, `updatedAt` です。
 Lambda 実行ロールにはテーブルへの `dynamodb:PutItem` と `dynamodb:DeleteItem`
-権限と、状態 JSON の `s3:GetObject` 権限が必要です。Keeper / Dash の送信ロールには同じテーブルへの
-`dynamodb:Scan` 権限と Parameter Store の `SecureString` 読み取り権限が必要です。
+権限が必要です。状態 JSON は Push Lambda ではなく、CloudFront の `/status` behavior
+から OAC で非公開 S3 bucket より配信します。
 
 ## 送信モジュール
 

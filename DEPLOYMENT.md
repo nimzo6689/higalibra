@@ -12,9 +12,16 @@ Scraping や Push などの workspace package が使う依存関係も Lambda �
 
 Lambda の IAM 権限を変更した場合は、GitHub Actions のデプロイを再実行して
 CloudFormation スタックを更新してください。Lambda ZIP のみを差し替えても IAM
-ロールのポリシーは更新されません。利用状況・調査履歴のオブジェクト権限に加え、
-オブジェクトが未作成の場合の判定に必要な対象バケットの `s3:ListBucket` 権限も
-Keeper、Dash、Push の実行ロールに設定します。
+ロールのポリシーは更新されません。Keeper / Dash は状態・調査履歴を扱う各 S3 bucket の
+`s3:ListBucket` と object 権限を使います。Mesh のデータ API は同一 CloudFront
+origin にまとめ、`/status` は OAC で保護した StatusBucket origin、`/subscriptions` は
+OAC で保護した Push Lambda URL origin にルーティングします。
+
+CloudFront の viewer-request Lambda@Edge は必ず us-east-1 に作成し、Cognito ID token の
+署名・audience・期限・許可ユーザーを検証します。GitHub Actions の AWS role には
+us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / CloudFormation の
+更新権限も必要です。Push Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが呼び出せる
+ようにします。認証は同一 origin の CloudFront data paths で行うため CORS は設定しません。
 
 ## 初回セットアップ
 
@@ -97,10 +104,11 @@ Keeper、Dash、Push の実行ロールに設定します。
    ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
-PWA はその URL と同一のオリジン、Cognito Hosted UI、および認証済みの Push Function URL
-を `/status` と `/subscriptions` の両方で使用します。利用状況を保存する S3 バケットは
-パブリックアクセスをブロックします。スナップショットを読み書きできるのは Keeper のみで、
-Push API は許可リストに含まれる Cognito ID トークンを検証した後に読み取れます。
+PWA はその CloudFront origin から `/status` と `/subscriptions` を呼びます。Cognito
+Hosted UI はログイン画面の表示と PKCE code exchange に使用します。状態 S3 bucket は
+パブリックアクセスをブロックし、CloudFront OAC からのみ読み出せます。`/status` と
+`/subscriptions` の認証は Lambda@Edge が行い、静的なログイン画面と SPA shell はログイン前にも
+配信されます。
 
 ## Dash のローカルテスト
 

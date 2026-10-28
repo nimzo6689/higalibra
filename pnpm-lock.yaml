@@ -92,15 +92,9 @@ importers:
       '@aws-sdk/client-dynamodb':
         specifier: ^3.883.0
         version: 3.1157.0
-      '@aws-sdk/client-s3':
-        specifier: ^3.883.0
-        version: 3.1157.0
       '@aws-sdk/lib-dynamodb':
         specifier: ^3.883.0
         version: 3.1157.0(@aws-sdk/client-dynamodb@3.1157.0)
-      aws-jwt-verify:
-        specifier: ^5.1.1
-        version: 5.2.1
       web-push:
         specifier: ^3.6.7
         version: 3.6.7
@@ -1028,10 +1022,6 @@ packages:
 
   asn1.js@5.4.1:
     resolution: {integrity: sha512-+I//4cYPccV8LdmBLiX8CYvf9Sp3vQsrqu2QNXRcrbiWvcx/UdlFiqUJJzxRQxgsZmvhXhn4cSKeSmoFjVdupA==}
-
-  aws-jwt-verify@5.2.1:
-    resolution: {integrity: sha512-J+buA4M+qvQDk58WXFBLkDodkEX3DDL1ac5XFQPW3opxAsaLXYu5hYnlSHsaBRDBUXBAn695kE/cw/mdyJKwJg==}
-    engines: {node: '>=18.0.0'}
 
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
@@ -2681,8 +2671,6 @@ snapshots:
       inherits: 2.0.4
       minimalistic-assert: 1.0.1
       safer-buffer: 2.1.2
-
-  aws-jwt-verify@5.2.1: {}
 
   balanced-match@4.0.4: {}
 

@@ -19,6 +19,8 @@ let tasks = [
 for task in $tasks {
   ^pnpm --filter $task.package $task.command
 }
+^pnpm exec eslint backend/edge-auth
+^node --test backend/edge-auth/test/handler.test.mjs
 
 # Lambda関数を本番依存関係のみで配置し、ZIPにまとめます。
 let artifacts = [
@@ -92,6 +94,26 @@ if not ($missing | is-empty) {
 }
 
 # 成果物の配置先や認証情報をCloudFormationのパラメーターに変換します。
+let current_stack_status = (
+  ^aws cloudformation list-stacks
+      --query $"StackSummaries[?StackName=='($env.STACK_NAME)' && StackStatus!='DELETE_COMPLETE'] | [0].StackStatus"
+      --output text
+      | str trim
+)
+let current_edge_auth_arn = if $current_stack_status == 'None' {
+  'NONE'
+} else {
+  ^aws cloudformation describe-stacks
+      --stack-name $env.STACK_NAME
+      --query 'Stacks[0].Parameters[?ParameterKey==`EdgeAuthFunctionVersionArn`] | [0].ParameterValue'
+      --output text
+      | str trim
+}
+let current_edge_auth_arn = if $current_edge_auth_arn == 'None' {
+  'NONE'
+} else {
+  $current_edge_auth_arn
+}
 let parameters = [
   { name: ArtifactBucketName, value: $bucket }
   { name: KeeperObjectKey, value: $"($env.GITHUB_SHA)/keeper.zip" }
@@ -102,6 +124,7 @@ let parameters = [
   { name: HostedUiDomainPrefix, value: $env.COGNITO_DOMAIN_PREFIX }
   { name: GoogleOAuthClientId, value: $env.GOOGLE_OAUTH_CLIENT_ID }
   { name: GoogleOAuthClientSecret, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
+  { name: EdgeAuthFunctionVersionArn, value: $current_edge_auth_arn }
 ] | each {|parameter| $"($parameter.name)=($parameter.value)" }
 
 # CloudFormationスタックとLambda関数をデプロイします。
@@ -126,12 +149,93 @@ let stack_outputs = (
           }
   )
 )
+
+# Lambda@Edgeはus-east-1に配置し、Cognitoの公開設定をコードと一緒に発行します。
+mkdir .artifacts/edge-auth
+let edge_configuration = {
+  region: $env.AWS_REGION
+  userPoolId: $stack_outputs.CognitoUserPoolId
+  clientId: $stack_outputs.CognitoUserPoolClientId
+  allowedUserIds: ($env.ALLOWED_USER_IDS | split row ',' | each {|id| $id | str trim } | where {|id| not ($id | is-empty) })
+  statusKey: $stack_outputs.StatusKey
+}
+$edge_configuration | to json -r | save --force .artifacts/edge-auth/config.json
+cp backend/edge-auth/handler.mjs .artifacts/edge-auth/handler.mjs
+cp backend/edge-auth/index.mjs .artifacts/edge-auth/index.mjs
+do {
+  cd .artifacts/edge-auth
+  ^zip -q ../edge-auth.zip index.mjs handler.mjs config.json
+}
+
+^aws cloudformation deploy
+    --region us-east-1
+    --template-file backend/edge-auth/infra.yaml
+    --stack-name $"($env.STACK_NAME)-edge-auth"
+    --capabilities CAPABILITY_NAMED_IAM
+    --no-fail-on-empty-changeset
+let edge_role_arn = (
+  ^aws cloudformation describe-stacks
+      --region us-east-1
+      --stack-name $"($env.STACK_NAME)-edge-auth"
+      --query 'Stacks[0].Outputs[?OutputKey==`EdgeAuthExecutionRoleArn`].OutputValue | [0]'
+      --output text
+      | str trim
+)
+let edge_function_name = $"($env.STACK_NAME)-edge-auth"
+let edge_function_check = (
+  ^aws lambda get-function-configuration
+      --region us-east-1
+      --function-name $edge_function_name
+      | complete
+)
+let edge_deployment = if $edge_function_check.exit_code == 0 {
+  ^aws lambda update-function-code
+      --region us-east-1
+      --function-name $edge_function_name
+      --zip-file fileb://.artifacts/edge-auth.zip
+      --publish
+    | from json
+} else {
+  ^aws lambda create-function
+      --region us-east-1
+      --function-name $edge_function_name
+      --runtime nodejs22.x
+      --handler index.handler
+      --role $edge_role_arn
+      --timeout 5
+      --memory-size 128
+      --publish
+      --zip-file fileb://.artifacts/edge-auth.zip
+    | from json
+}
+^aws lambda wait function-active-v2 --region us-east-1 --function-name $edge_function_name
+let edge_function_arn = (
+  ^aws lambda get-function-configuration
+      --region us-east-1
+      --function-name $edge_function_name
+      --query FunctionArn
+      --output text
+      | str trim
+)
+let edge_function = $"($edge_function_arn):($edge_deployment.Version)"
+let activated_parameters = $parameters
+  | where {|parameter| not ($parameter | str starts-with 'EdgeAuthFunctionVersionArn=') }
+  | append $"EdgeAuthFunctionVersionArn=($edge_function)"
+(
+  ^aws cloudformation deploy
+      --template-file infra.yaml
+      --stack-name $env.STACK_NAME
+      --capabilities CAPABILITY_NAMED_IAM
+      --no-fail-on-empty-changeset
+      --parameter-overrides ...$activated_parameters
+)
+
 let frontend_environment = {
   VITE_COGNITO_DOMAIN: $stack_outputs.CognitoHostedUiDomain
   VITE_COGNITO_CLIENT_ID: $stack_outputs.CognitoUserPoolClientId
   VITE_COGNITO_REDIRECT_URI: $stack_outputs.MeshUrl
-  VITE_STATUS_URL: $"($stack_outputs.PushFunctionUrl)status"
-  VITE_PUSH_API_URL: $stack_outputs.PushFunctionUrl
+  VITE_STATUS_URL: $"($stack_outputs.MeshUrl)status"
+  VITE_PUSH_API_URL: $stack_outputs.MeshUrl
   VITE_VAPID_PUBLIC_KEY: $env.VAPID_PUBLIC_KEY
 }
 

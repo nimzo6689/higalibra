@@ -20,7 +20,6 @@ export async function enablePush(
     headers: {
       authorization: `Bearer ${idToken}`,
       'content-type': 'application/json',
-      'x-cognito-id-token': idToken,
     },
     body: JSON.stringify({
       deviceId: getDeviceId(),
@@ -45,7 +44,6 @@ export async function disablePush(
     headers: {
       authorization: `Bearer ${idToken}`,
       'content-type': 'application/json',
-      'x-cognito-id-token': idToken,
     },
     body: JSON.stringify({ deviceId: getDeviceId() }),
   });
