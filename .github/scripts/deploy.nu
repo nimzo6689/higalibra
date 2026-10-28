@@ -193,24 +193,28 @@ let edge_function_check = (
       | complete
 )
 let edge_deployment = if $edge_function_check.exit_code == 0 {
-  ^aws lambda update-function-code
-      --region us-east-1
-      --function-name $edge_function_name
-      --zip-file fileb://.artifacts/edge-auth.zip
-      --publish
-    | from json
+  (
+    ^aws lambda update-function-code
+        --region us-east-1
+        --function-name $edge_function_name
+        --zip-file fileb://.artifacts/edge-auth.zip
+        --publish
+      | from json
+  )
 } else {
-  ^aws lambda create-function
-      --region us-east-1
-      --function-name $edge_function_name
-      --runtime nodejs22.x
-      --handler index.handler
-      --role $edge_role_arn
-      --timeout 5
-      --memory-size 128
-      --publish
-      --zip-file fileb://.artifacts/edge-auth.zip
-    | from json
+  (
+    ^aws lambda create-function
+        --region us-east-1
+        --function-name $edge_function_name
+        --runtime nodejs22.x
+        --handler index.handler
+        --role $edge_role_arn
+        --timeout 5
+        --memory-size 128
+        --publish
+        --zip-file fileb://.artifacts/edge-auth.zip
+      | from json
+  )
 }
 ^aws lambda wait function-active-v2 --region us-east-1 --function-name $edge_function_name
 let edge_function_arn = (
