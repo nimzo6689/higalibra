@@ -169,12 +169,14 @@ do {
   ^zip -q ../edge-auth.zip index.mjs handler.mjs config.json
 }
 
-^aws cloudformation deploy
-    --region us-east-1
-    --template-file backend/edge-auth/infra.yaml
-    --stack-name $"($env.STACK_NAME)-edge-auth"
-    --capabilities CAPABILITY_NAMED_IAM
-    --no-fail-on-empty-changeset
+(
+  ^aws cloudformation deploy
+      --region us-east-1
+      --template-file backend/edge-auth/infra.yaml
+      --stack-name $"($env.STACK_NAME)-edge-auth"
+      --capabilities CAPABILITY_NAMED_IAM
+      --no-fail-on-empty-changeset
+)
 let edge_role_arn = (
   ^aws cloudformation describe-stacks
       --region us-east-1
