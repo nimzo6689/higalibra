@@ -103,11 +103,13 @@ let current_stack_status = (
 let current_edge_auth_arn = if $current_stack_status == 'None' {
   'NONE'
 } else {
-  ^aws cloudformation describe-stacks
-      --stack-name $env.STACK_NAME
-      --query 'Stacks[0].Parameters[?ParameterKey==`EdgeAuthFunctionVersionArn`] | [0].ParameterValue'
-      --output text
-      | str trim
+  (
+    ^aws cloudformation describe-stacks
+        --stack-name $env.STACK_NAME
+        --query 'Stacks[0].Parameters[?ParameterKey==`EdgeAuthFunctionVersionArn`] | [0].ParameterValue'
+        --output text
+        | str trim
+  )
 }
 let current_edge_auth_arn = if $current_edge_auth_arn == 'None' {
   'NONE'
