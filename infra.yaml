@@ -17,10 +17,6 @@ Parameters:
   KeeperParameterName:
     Type: String
     Description: Name of the pre-created SSM SecureString parameter containing library, VAPID, and Gemini credentials.
-  AllowedUserIds:
-    Type: String
-    Default: PENDING_USER_CONFIGURATION
-    Description: Comma-separated Cognito user sub values authorized to use the family application.
   HostedUiDomainPrefix:
     Type: String
     Description: Globally unique Cognito Hosted UI domain prefix.

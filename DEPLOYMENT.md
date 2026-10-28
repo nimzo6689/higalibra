@@ -18,7 +18,8 @@ origin にまとめ、`/status` は OAC で保護した StatusBucket origin、`/
 OAC で保護した Push Lambda URL origin にルーティングします。
 
 CloudFront の viewer-request Lambda@Edge は必ず us-east-1 に作成し、Cognito ID token の
-署名・audience・期限・許可ユーザーを検証します。GitHub Actions の AWS role には
+署名・audience・期限を検証します。ログイン可能なアカウントの制限は Google OAuth 側で
+設定します。GitHub Actions の AWS role には
 us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / CloudFormation の
 更新権限も必要です。Push Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが呼び出せる
 ようにします。認証は同一 origin の CloudFront data paths で行うため CORS は設定しません。
@@ -54,19 +55,20 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    を登録します（AWS リージョンを省略した場合は `ap-northeast-1`）。
    発行されたクライアント ID とクライアント シークレットを、それぞれ
    `GOOGLE_OAUTH_CLIENT_ID` と `GOOGLE_OAUTH_CLIENT_SECRET` として GitHub Actions
-   リポジトリ Secrets に登録してください。
+   リポジトリ Secrets に登録してください。許可するメールアドレスを Google OAuth
+   側でも制限してください。OAuth クライアント ID とシークレットだけでは通常、
+   ログイン可能なメールアドレスは限定されません。Google OAuth の Audience が
+   Testing の場合は Test users のみが利用できますが、アプリを Production に切り替えると
+   この制限がなくなるため、Google Workspace の Internal 設定など別の制限を確認してください。
 5. 次の GitHub Actions リポジトリ Secrets を設定します。
    - `AWS_REGION`（省略可。既定値は `ap-northeast-1`）
    - `COGNITO_DOMAIN_PREFIX`（必須。全体で一意な小文字の Cognito ドメイン）
    - `GOOGLE_OAUTH_CLIENT_ID`（必須。Google OAuth クライアント ID）
    - `GOOGLE_OAUTH_CLIENT_SECRET`（必須。Google OAuth クライアント シークレット）
    - `VAPID_PUBLIC_KEY`（必須。Parameter Store に設定した鍵と対になる公開鍵）
-   - `COGNITO_ALLOWED_USER_IDS`（Cognito ユーザー作成後に設定。下記参照）
 6. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
    購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
-   初回実行では、許可リストが設定されるまで API リクエストを拒否する初期値が使われます。
-   そのため、家族の利用者 ID を設定するまで API リクエストは拒否されます。
 7. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
    作成し、対応する図書館カード番号を `custom:cardNo` 属性に設定します。CLI の例：
 
@@ -96,13 +98,12 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Google アカウントの `sub` は Google の OpenID Connect ユーザー情報から確認します。
    Google アカウントのメールアドレスと既存ユーザーのメールアドレスが一致することを
    確認してください。リンクしない場合は Google ログイン時に別ユーザーが作成され、
-   既存の利用者 ID 許可リストでは API を利用できません。
+   `custom:cardNo` が設定されていないため Push 通知を登録できません。
 
-   各ユーザーの `sub` を取得し、4人分の `sub` をカンマ区切りで
-   `COGNITO_ALLOWED_USER_IDS` Secret に設定して、ワークフローをもう一度実行してください。
    `custom:cardNo` はアプリから変更できず、Push API が購読先を利用者に紐付けるために
-   Cognito ID トークンから検証します。`/status` の取得は許可済み `sub` の検証のみで行います。
-   ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
+   Cognito ID トークンから検証します。`/status` と `/subscriptions` は Cognito ID token
+   の署名・issuer・audience・期限を検証しますが、Cognito `sub` による個別許可リストは
+   使用しません。ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
 PWA はその CloudFront origin から `/status` と `/subscriptions` を呼びます。Cognito

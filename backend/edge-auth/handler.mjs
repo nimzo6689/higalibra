@@ -5,7 +5,6 @@ const jwksRequests = new Map();
 const JWKS_TTL_MS = 5 * 60 * 1000;
 
 export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
-  const allowedUserIds = new Set(configuration.allowedUserIds);
   const issuer = `https://cognito-idp.${configuration.region}.amazonaws.com/${configuration.userPoolId}`;
 
   return async (event) => {
@@ -41,7 +40,6 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
       claims = await verifyIdToken(token, {
         ...configuration,
         issuer,
-        allowedUserIds,
         loadJwks,
         requireCardNo: request.uri === '/subscriptions',
       });
@@ -86,7 +84,6 @@ async function verifyIdToken(token, configuration) {
     claims.token_use !== 'id' ||
     claims.aud !== configuration.clientId ||
     typeof claims.sub !== 'string' ||
-    !configuration.allowedUserIds.has(claims.sub) ||
     (configuration.requireCardNo &&
       (typeof claims['custom:cardNo'] !== 'string' ||
         claims['custom:cardNo'].trim() === '')) ||

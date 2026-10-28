@@ -8,11 +8,11 @@ Web Push 送信モジュールです。
 `/subscriptions` は CloudFront の Lambda URL origin からこの Lambda を呼び出します。
 Function URL は `AWS_IAM` と Origin Access Control (OAC) で保護し、CloudFront
 ディストリビューションだけが呼び出せます。JWT の署名・有効期限・Cognito audience と
-`ALLOWED_USER_IDS` の検証は us-east-1 の Lambda@Edge が行います。Lambda@Edge は
+issuer の検証は us-east-1 の Lambda@Edge が行います。ログイン可能なアカウントの制限は
+Google OAuth 側で設定します。Lambda@Edge は
 検証した `sub` と `custom:cardNo` を内部ヘッダーに設定し、OAC で保護された origin
 request policy を通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
 
-4人分の Cognito `sub` を GitHub Actions secret `COGNITO_ALLOWED_USER_IDS` に指定します。
 各 Cognito ユーザーには図書館カード番号を `custom:cardNo` 属性として設定してください。
 購読先は Lambda@Edge
 が JWT の署名を検証して作成した `x-authenticated-card-no` で特定し、リクエスト本文から

@@ -122,7 +122,6 @@ let parameters = [
   { name: DashObjectKey, value: $"($env.GITHUB_SHA)/dash.zip" }
   { name: PushObjectKey, value: $"($env.GITHUB_SHA)/push.zip" }
   { name: KeeperParameterName, value: $env.KEEPER_PARAMETER_NAME }
-  { name: AllowedUserIds, value: $env.ALLOWED_USER_IDS }
   { name: HostedUiDomainPrefix, value: $env.COGNITO_DOMAIN_PREFIX }
   { name: GoogleOAuthClientId, value: $env.GOOGLE_OAUTH_CLIENT_ID }
   { name: GoogleOAuthClientSecret, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
@@ -158,7 +157,6 @@ let edge_configuration = {
   region: $env.AWS_REGION
   userPoolId: $stack_outputs.CognitoUserPoolId
   clientId: $stack_outputs.CognitoUserPoolClientId
-  allowedUserIds: ($env.ALLOWED_USER_IDS | split row ',' | each {|id| $id | str trim } | where {|id| not ($id | is-empty) })
   statusKey: $stack_outputs.StatusKey
 }
 $edge_configuration | to json -r | save --force .artifacts/edge-auth/config.json

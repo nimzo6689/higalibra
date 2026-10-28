@@ -56,14 +56,13 @@ function createHandler() {
       region: 'ap-northeast-1',
       userPoolId: 'ap-northeast-1_test',
       clientId: 'test-client',
-      allowedUserIds: [userId],
       statusKey: 'user_status.json',
     },
     async () => ({ keys: [jwk] }),
   );
 }
 
-test('authenticates allowed Cognito users and rewrites status to the S3 object', async () => {
+test('authenticates Cognito tokens and rewrites status to the S3 object', async () => {
   const handler = createHandler();
   const request = cloudFrontEvent('/status', createToken()).Records[0].cf.request;
   request.headers['x-authenticated-sub'] = [
@@ -98,18 +97,29 @@ test('allows status access without a card number but requires it for subscriptio
   assert.equal(subscriptionsResult.status, '401');
 });
 
-test('rejects invalid signatures and users outside the allowlist', async () => {
+test('rejects invalid signatures', async () => {
   const invalidSignature = await createHandler()(
-    cloudFrontEvent('/status', createToken({}, generateKeyPairSync('rsa', {
-      modulusLength: 2048,
-    }).privateKey)),
-  );
-  const disallowedUser = await createHandler()(
-    cloudFrontEvent('/status', createToken({ sub: 'other-user' })),
+    cloudFrontEvent(
+      '/status',
+      createToken(
+        {},
+        generateKeyPairSync('rsa', {
+          modulusLength: 2048,
+        }).privateKey,
+      ),
+    ),
   );
 
   assert.equal(invalidSignature.status, '401');
-  assert.equal(disallowedUser.status, '401');
+});
+
+test('accepts any Cognito sub with a valid token from the configured user pool and client', async () => {
+  const result = await createHandler()(
+    cloudFrontEvent('/status', createToken({ sub: 'other-user' })),
+  );
+
+  assert.equal(result.uri, '/user_status.json');
+  assert.equal(result.headers['x-authenticated-sub'][0].value, 'other-user');
 });
 
 test('rejects the wrong token audience and expired ID tokens', async () => {
