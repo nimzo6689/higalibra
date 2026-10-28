@@ -147,7 +147,7 @@ Resources:
         Name: !Sub '${AWS::StackName}-push-origin-requests'
         Comment: Forward only the verified identity and request content to Push.
         HeadersConfig:
-          HeaderBehavior: allow-list
+          HeaderBehavior: whitelist
           Headers:
             - content-type
             - x-authenticated-card-no
