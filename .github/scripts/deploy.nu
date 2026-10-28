@@ -60,7 +60,11 @@ let encryption = {
     }
   }]
 }
-^aws s3api put-bucket-encryption --bucket $bucket --server-side-encryption-configuration ($encryption | to json -r)
+(
+  ^aws s3api put-bucket-encryption
+      --bucket $bucket
+      --server-side-encryption-configuration ($encryption | to json -r)
+)
 
 # ZIPをコミットSHAごとのキーで成果物用バケットへアップロードします。
 let uploads = $artifacts | each {|artifact|
@@ -101,15 +105,26 @@ let parameters = [
 ] | each {|parameter| $"($parameter.name)=($parameter.value)" }
 
 # CloudFormationスタックとLambda関数をデプロイします。
-^aws cloudformation deploy --template-file infra.yaml --stack-name $env.STACK_NAME --capabilities CAPABILITY_NAMED_IAM --no-fail-on-empty-changeset --parameter-overrides ...$parameters
+(
+  ^aws cloudformation deploy
+      --template-file infra.yaml
+      --stack-name $env.STACK_NAME
+      --capabilities CAPABILITY_NAMED_IAM
+      --no-fail-on-empty-changeset
+      --parameter-overrides ...$parameters
+)
 
 # スタック出力を取得します。
 let stack_outputs = (
-  ^aws cloudformation describe-stacks --stack-name $env.STACK_NAME --query 'Stacks[0].Outputs' --output json |
-    from json |
-    reduce --fold {} {|output, result|
-      $result | insert $output.OutputKey $output.OutputValue
-    }
+  (
+    ^aws cloudformation describe-stacks
+        --stack-name $env.STACK_NAME
+        --query 'Stacks[0].Outputs' --output json
+        | from json
+        | reduce --fold {} {|output, result|
+            $result | insert $output.OutputKey $output.OutputValue
+          }
+  )
 )
 let frontend_environment = {
   VITE_COGNITO_DOMAIN: $stack_outputs.CognitoHostedUiDomain
