@@ -23,7 +23,7 @@ CloudFormation スタックを更新してください。Lambda ZIP のみを差
    [backend/dash/README.md](./backend/dash/README.md) に記載された JSON 形式に従って、
    Systems Manager Parameter Store に `/higalibra/keeper` という名前で
    `SecureString` パラメーターを作成します。リポジトリ Secret
-   `KEEPER_PARAMETER_NAME` に `/higalibra/keeper` を設定してください。
+   `KEEPER_PARAMETER_NAME` には `/higalibra/keeper` またはその完全な ARN を設定します。
    パラメーターには、図書館の4アカウント分の情報、VAPID 認証情報、Google AI Studio
    API キー、および Dash が予約に使用するカード番号を示す `reservationCardNo` を含めます。
 3. VAPID の鍵ペアを生成して SecureString に保存します。リポジトリルートで次を

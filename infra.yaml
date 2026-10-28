@@ -41,6 +41,16 @@ Parameters:
     Default: dash_research_history.json
     Description: S3 object key for Dash's research history.
 
+Conditions:
+  KeeperParameterNameIsArn:
+    Fn::Equals:
+      - Fn::Select:
+          - 0
+          - Fn::Split:
+              - ':'
+              - Ref: KeeperParameterName
+      - arn
+
 Resources:
   StatusBucket:
     Type: AWS::S3::Bucket
@@ -276,7 +286,11 @@ Resources:
         Statement:
           - Effect: Allow
             Action: ssm:GetParameter
-            Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
+            Resource:
+              Fn::If:
+                - KeeperParameterNameIsArn
+                - Ref: KeeperParameterName
+                - Fn::Sub: 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
 
   KeeperFunction:
     Type: AWS::Lambda::Function
@@ -354,7 +368,11 @@ Resources:
         Statement:
           - Effect: Allow
             Action: ssm:GetParameter
-            Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
+            Resource:
+              Fn::If:
+                - KeeperParameterNameIsArn
+                - Ref: KeeperParameterName
+                - Fn::Sub: 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
 
   DashFunction:
     Type: AWS::Lambda::Function
