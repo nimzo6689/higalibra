@@ -9,6 +9,7 @@ import type {
 
 export { DynamoDbPushSender } from './sender.js';
 export { DynamoDbSubscriptionStore } from './subscriptions.js';
+export { createPreSignUpHandler, preSignUpHandler } from './pre-signup.js';
 export type {
   FunctionUrlEvent,
   FunctionUrlResponse,

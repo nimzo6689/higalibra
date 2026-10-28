@@ -36,7 +36,14 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    `KEEPER_PARAMETER_NAME` には `/higalibra/keeper` またはその完全な ARN を設定します。
    パラメーターには、図書館の4アカウント分の情報、VAPID 認証情報、Google AI Studio
    API キー、および Dash が予約に使用するカード番号を示す `reservationCardNo` を含めます。
-3. VAPID の鍵ペアを生成して SecureString に保存します。リポジトリルートで次を
+3. Cognito のサインアップ許可リストを Systems Manager Parameter Store の
+   `SecureString` として作成します。値はメールアドレスの JSON 配列です
+   （例: `["member1@example.com","member2@example.com"]`）。パラメーター名
+   （例: `/higalibra/allowed-emails`）を GitHub Actions Secret
+   `ALLOWED_EMAILS_PARAMETER_NAME` に設定してください。メールアドレスの照合は大文字・
+   小文字を区別しません。サインアップごとに SecureString を復号して照合するため、
+   リストの変更は Lambda の再デプロイなしで反映されます。
+4. VAPID の鍵ペアを生成して SecureString に保存します。リポジトリルートで次を
    実行し、管理者の連絡先メールアドレスを指定します。
 
    ```sh
@@ -49,7 +56,7 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Secret に手動登録してください。実行環境には pnpm の依存関係と、対象 AWS
    アカウントの SSM SecureString 読み書き権限が必要です。
 
-4. Google Cloud Console で Web application の OAuth クライアントを作成します。
+5. Google Cloud Console で Web application の OAuth クライアントを作成します。
    承認済みのリダイレクト URI に
    `https://<COGNITO_DOMAIN_PREFIX>.auth.<AWS_REGION>.amazoncognito.com/oauth2/idpresponse`
    を登録します（AWS リージョンを省略した場合は `ap-northeast-1`）。
@@ -60,16 +67,17 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    ログイン可能なメールアドレスは限定されません。Google OAuth の Audience が
    Testing の場合は Test users のみが利用できますが、アプリを Production に切り替えると
    この制限がなくなるため、Google Workspace の Internal 設定など別の制限を確認してください。
-5. 次の GitHub Actions リポジトリ Secrets を設定します。
+6. 次の GitHub Actions リポジトリ Secrets を設定します。
    - `AWS_REGION`（省略可。既定値は `ap-northeast-1`）
+   - `ALLOWED_EMAILS_PARAMETER_NAME`（必須。許可メールアドレス一覧を格納した SecureString の名前または ARN）
    - `COGNITO_DOMAIN_PREFIX`（必須。全体で一意な小文字の Cognito ドメイン）
    - `GOOGLE_OAUTH_CLIENT_ID`（必須。Google OAuth クライアント ID）
    - `GOOGLE_OAUTH_CLIENT_SECRET`（必須。Google OAuth クライアント シークレット）
    - `VAPID_PUBLIC_KEY`（必須。Parameter Store に設定した鍵と対になる公開鍵）
-6. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
+7. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
    購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
-7. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
+8. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
    作成し、対応する図書館カード番号を `custom:cardNo` 属性に設定します。CLI の例：
 
    ```sh
@@ -85,6 +93,12 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Google ログインを既存の Cognito ユーザーに紐付ける場合は、
    `admin-link-provider-for-user` を使い、Google アカウントの `sub` を既存ユーザーに
    リンクしてください。リンク後も既存ユーザーの `sub` と `custom:cardNo` が維持されます。
+
+   Cognito の `PreSignUp` Lambda トリガーは、Google ログインで新しい Cognito ユーザーが
+   作成される前にメールアドレスを許可リストと照合します。未登録のアドレスは登録を拒否
+   します。`AdminCreateUserOnly` を有効にしているため、管理者が `AdminCreateUser` で
+   直接作成するユーザーはこのトリガーを通りません。管理者による追加時も、必ず許可リスト
+   に含まれるアドレスを使用してください。
    例では Google の `sub` を `GOOGLE_SUB`、既存ユーザーのメールアドレスを
    `MEMBER_EMAIL` としています。
 

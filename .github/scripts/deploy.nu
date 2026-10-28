@@ -82,6 +82,7 @@ for upload in $uploads {
 # インフラのデプロイに必要なGitHub Actions Secretが設定されているか確認します。
 let required_variables = [
   { name: KEEPER_PARAMETER_NAME, value: $env.KEEPER_PARAMETER_NAME }
+  { name: ALLOWED_EMAILS_PARAMETER_NAME, value: $env.ALLOWED_EMAILS_PARAMETER_NAME }
   { name: COGNITO_DOMAIN_PREFIX, value: $env.COGNITO_DOMAIN_PREFIX }
   { name: GOOGLE_OAUTH_CLIENT_ID, value: $env.GOOGLE_OAUTH_CLIENT_ID }
   { name: GOOGLE_OAUTH_CLIENT_SECRET, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
@@ -122,6 +123,7 @@ let parameters = [
   { name: DashObjectKey, value: $"($env.GITHUB_SHA)/dash.zip" }
   { name: PushObjectKey, value: $"($env.GITHUB_SHA)/push.zip" }
   { name: KeeperParameterName, value: $env.KEEPER_PARAMETER_NAME }
+  { name: AllowedEmailsParameterName, value: $env.ALLOWED_EMAILS_PARAMETER_NAME }
   { name: HostedUiDomainPrefix, value: $env.COGNITO_DOMAIN_PREFIX }
   { name: GoogleOAuthClientId, value: $env.GOOGLE_OAUTH_CLIENT_ID }
   { name: GoogleOAuthClientSecret, value: $env.GOOGLE_OAUTH_CLIENT_SECRET }
