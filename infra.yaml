@@ -19,7 +19,7 @@ Parameters:
     Description: Name of the pre-created SSM SecureString parameter containing library, VAPID, and Gemini credentials.
   AllowedEmailsParameterName:
     Type: String
-    Description: Name of the pre-created SSM SecureString parameter containing the Cognito email allowlist.
+    Description: Name of the pre-created SSM SecureString parameter mapping allowed Cognito emails to library card numbers.
   HostedUiDomainPrefix:
     Type: String
     Description: Globally unique Cognito Hosted UI domain prefix.
@@ -157,8 +157,7 @@ Resources:
           HeaderBehavior: whitelist
           Headers:
             - content-type
-            - x-authenticated-card-no
-            - x-authenticated-sub
+            - x-authenticated-email
         CookiesConfig:
           CookieBehavior: none
         QueryStringsConfig:
@@ -568,6 +567,17 @@ Resources:
                   - dynamodb:PutItem
                   - dynamodb:DeleteItem
                 Resource: !GetAtt SubscriptionsTable.Arn
+        - PolicyName: PushAllowedEmailsParameterAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  Fn::If:
+                    - AllowedEmailsParameterNameIsArn
+                    - Ref: AllowedEmailsParameterName
+                    - Fn::Sub: 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AllowedEmailsParameterName}'
 
   PushFunction:
     Type: AWS::Lambda::Function
@@ -586,6 +596,7 @@ Resources:
       Environment:
         Variables:
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          ALLOWED_EMAILS_PARAMETER_NAME: !Ref AllowedEmailsParameterName
 
   PushFunctionUrl:
     Type: AWS::Lambda::Url

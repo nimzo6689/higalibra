@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createHandler } from '../dist/index.js';
 
-const cognitoSub = 'family-member-sub';
+const email = 'Member@Example.com';
 const cardNo = '2010610570';
 const validSubscription = {
   endpoint: 'https://push.example/subscription',
@@ -14,6 +14,7 @@ function createRoute() {
   const deleted = [];
   const route = createHandler({
     now: () => new Date('2026-10-27T05:00:00.000Z'),
+    loadEmailCardNumbers: async () => new Map([['member@example.com', cardNo]]),
     subscriptions: {
       async save(...args) {
         saved.push(args);
@@ -30,8 +31,7 @@ function event(
   method,
   body,
   headers = {
-    'x-authenticated-sub': cognitoSub,
-    'x-authenticated-card-no': cardNo,
+    'x-authenticated-email': email,
   },
 ) {
   return {
@@ -59,7 +59,7 @@ test('registers a subscription for the edge-authenticated family member', async 
   ]);
 });
 
-test('uses the verified card number rather than the Cognito sub', async () => {
+test('resolves the card number from the normalized verified email', async () => {
   const { route, saved } = createRoute();
 
   const response = await route(
@@ -68,7 +68,6 @@ test('uses the verified card number rather than the Cognito sub', async () => {
 
   assert.equal(response.statusCode, 200);
   assert.equal(saved[0][0], cardNo);
-  assert.notEqual(saved[0][0], cognitoSub);
 });
 
 test('deletes only the edge-authenticated user device subscription', async () => {
@@ -90,12 +89,29 @@ test('requires a verified identity from the CloudFront edge authorizer', async (
     event(
       'POST',
       { deviceId: 'phone-1', subscription: validSubscription },
-      { 'x-authenticated-sub': cognitoSub },
+      { 'x-authenticated-sub': 'unexpected-sub-header' },
     ),
   );
 
   assert.equal(missing.statusCode, 401);
   assert.equal(incompleteIdentity.statusCode, 401);
+  assert.equal(saved.length, 0);
+});
+
+test('rejects authenticated emails without a card number mapping', async () => {
+  const { route, saved } = createRoute();
+  const response = await route(
+    event(
+      'POST',
+      {
+        deviceId: 'phone-1',
+        subscription: validSubscription,
+      },
+      { 'x-authenticated-email': 'unknown@example.com' },
+    ),
+  );
+
+  assert.equal(response.statusCode, 403);
   assert.equal(saved.length, 0);
 });
 

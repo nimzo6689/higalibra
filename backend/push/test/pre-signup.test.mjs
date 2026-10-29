@@ -8,7 +8,7 @@ test('allows an email from the configured list regardless of letter case', async
     request: { userAttributes: { email: 'Member@Example.com' } },
   };
   const handler = createPreSignUpHandler(
-    async () => new Set(['member@example.com']),
+    async () => new Map([['member@example.com', '2010610570']]),
   );
 
   assert.equal(await handler(event), event);
@@ -16,7 +16,7 @@ test('allows an email from the configured list regardless of letter case', async
 
 test('rejects email addresses outside the configured list', async () => {
   const handler = createPreSignUpHandler(
-    async () => new Set(['member@example.com']),
+    async () => new Map([['member@example.com', '2010610570']]),
   );
 
   await assert.rejects(
@@ -26,7 +26,7 @@ test('rejects email addresses outside the configured list', async () => {
 });
 
 test('rejects events without an email address', async () => {
-  const handler = createPreSignUpHandler(async () => new Set());
+  const handler = createPreSignUpHandler(async () => new Map());
 
   await assert.rejects(
     handler({ request: { userAttributes: {} } }),

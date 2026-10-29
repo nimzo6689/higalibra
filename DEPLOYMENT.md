@@ -36,13 +36,17 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    `KEEPER_PARAMETER_NAME` には `/higalibra/keeper` またはその完全な ARN を設定します。
    パラメーターには、図書館の4アカウント分の情報、VAPID 認証情報、Google AI Studio
    API キー、および Dash が予約に使用するカード番号を示す `reservationCardNo` を含めます。
-3. Cognito のサインアップ許可リストを Systems Manager Parameter Store の
-   `SecureString` として作成します。値はメールアドレスの JSON 配列です
-   （例: `["member1@example.com","member2@example.com"]`）。パラメーター名
+3. Cognito のサインアップ許可リストと図書館カード番号の対応表を Systems Manager
+   Parameter Store の `SecureString` として作成します。値はメールアドレスをキー、
+   カード番号を文字列値にする JSON オブジェクトです
+   （例: `{"member1@example.com":"2010610570","member2@example.com":"2010610571"}`）。
+   パラメーター名
    （例: `/higalibra/allowed-emails`）を GitHub Actions Secret
-   `ALLOWED_EMAILS_PARAMETER_NAME` に設定してください。メールアドレスの照合は大文字・
-   小文字を区別しません。サインアップごとに SecureString を復号して照合するため、
-   リストの変更は Lambda の再デプロイなしで反映されます。
+   `ALLOWED_EMAILS_PARAMETER_NAME` に設定してください。PreSignUp と `/subscriptions`
+   API はこの対応表を使用し、メールアドレスの照合は大文字・小文字を区別しません。
+   呼び出しごとに SecureString を復号して参照するため、対応表の変更は Lambda の
+   再デプロイなしで反映されます。既存環境では、従来のメールアドレス JSON 配列をこの
+   対応表形式に更新してください。
 4. VAPID の鍵ペアを生成して SecureString に保存します。リポジトリルートで次を
    実行し、管理者の連絡先メールアドレスを指定します。
 
@@ -77,22 +81,19 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
 7. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
    購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
-8. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを
-   作成し、対応する図書館カード番号を `custom:cardNo` 属性に設定します。CLI の例：
+8. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを作成します。
+   図書館カード番号は手順 3 の SSM 対応表に登録するため、Cognito の `custom:cardNo`
+   属性設定は不要です。CLI の例：
 
    ```sh
    aws cognito-idp admin-create-user \
      --user-pool-id <CognitoUserPoolId output> \
      --username member@example.com
-   aws cognito-idp admin-update-user-attributes \
-     --user-pool-id <CognitoUserPoolId output> \
-     --username member@example.com \
-     --user-attributes Name=custom:cardNo,Value=<cardNo>
    ```
 
    Google ログインを既存の Cognito ユーザーに紐付ける場合は、
    `admin-link-provider-for-user` を使い、Google アカウントの `sub` を既存ユーザーに
-   リンクしてください。リンク後も既存ユーザーの `sub` と `custom:cardNo` が維持されます。
+   リンクしてください。
 
    Cognito の `PreSignUp` Lambda トリガーは、Google ログインで新しい Cognito ユーザーが
    作成される前にメールアドレスを許可リストと照合します。未登録のアドレスは登録を拒否
@@ -110,14 +111,12 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    ```
 
    Google アカウントの `sub` は Google の OpenID Connect ユーザー情報から確認します。
-   Google アカウントのメールアドレスと既存ユーザーのメールアドレスが一致することを
-   確認してください。リンクしない場合は Google ログイン時に別ユーザーが作成され、
-   `custom:cardNo` が設定されていないため Push 通知を登録できません。
+   Google アカウントのメールアドレスと SSM 対応表のメールアドレスが一致することを
+   確認してください。
 
-   `custom:cardNo` はアプリから変更できず、Push API が購読先を利用者に紐付けるために
-   Cognito ID トークンから検証します。`/status` と `/subscriptions` は Cognito ID token
-   の署名・issuer・audience・期限を検証しますが、Cognito `sub` による個別許可リストは
-   使用しません。ユーザー属性の設定と Google アカウントのリンクは、必ず管理者権限で行ってください。
+   `/subscriptions` は Cognito ID token の署名・issuer・audience・期限とメール確認済み
+   claim を Lambda@Edge で検証し、Push API がメールアドレスから SSM 対応表を引いて
+   cardNo を解決します。メールアドレスをリクエスト本文から指定することはできません。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
 PWA はその CloudFront origin から `/status` と `/subscriptions` を呼びます。Cognito

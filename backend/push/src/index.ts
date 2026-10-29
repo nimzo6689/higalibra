@@ -1,4 +1,5 @@
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { loadEmailCardNumbers, normalizeEmail } from './email-card-numbers.js';
 import { DynamoDbSubscriptionStore } from './subscriptions.js';
 import type {
   FunctionUrlEvent,
@@ -22,15 +23,16 @@ export type {
 
 interface PushApiDependencies {
   subscriptions: SubscriptionStore;
+  loadEmailCardNumbers: () => Promise<ReadonlyMap<string, string>>;
   now?: () => Date;
 }
 
 interface VerifiedUser {
-  sub: string;
-  cardNo: string;
+  email: string;
 }
 
 interface PushApiConfiguration {
+  allowedEmailsParameterName: string;
   tableName: string;
   region?: string;
 }
@@ -84,11 +86,15 @@ export function createHandler(dependencies: PushApiDependencies) {
           error: 'subscription must contain an HTTPS endpoint and valid keys.',
         });
       }
+      const cardNo = await resolveCardNo(dependencies, user.email);
+      if (!cardNo) {
+        return response(403, { error: 'Email address is not authorized.' });
+      }
       const updatedAt = (
         dependencies.now ?? (() => new Date())
       )().toISOString();
       await dependencies.subscriptions.save(
-        user.cardNo,
+        cardNo,
         deviceId,
         subscription,
         updatedAt,
@@ -96,7 +102,11 @@ export function createHandler(dependencies: PushApiDependencies) {
       return response(200, { deviceId, updatedAt });
     }
 
-    await dependencies.subscriptions.delete(user.cardNo, deviceId);
+    const cardNo = await resolveCardNo(dependencies, user.email);
+    if (!cardNo) {
+      return response(403, { error: 'Email address is not authorized.' });
+    }
+    await dependencies.subscriptions.delete(cardNo, deviceId);
     return response(200, { deviceId, deleted: true });
   };
 }
@@ -115,6 +125,8 @@ function createConfiguredHandler(configuration: PushApiConfiguration) {
       client,
       configuration.tableName,
     ),
+    loadEmailCardNumbers: () =>
+      loadEmailCardNumbers(configuration.allowedEmailsParameterName),
   });
 }
 
@@ -123,6 +135,10 @@ function readConfiguration(
 ): PushApiConfiguration {
   return {
     tableName: requiredEnvironmentValue(environment, 'SUBSCRIPTIONS_TABLE'),
+    allowedEmailsParameterName: requiredEnvironmentValue(
+      environment,
+      'ALLOWED_EMAILS_PARAMETER_NAME',
+    ),
     region: environment.AWS_REGION,
   };
 }
@@ -147,9 +163,18 @@ function readAuthenticatedUser(
       value?.trim(),
     ]),
   );
-  const sub = normalizedHeaders.get('x-authenticated-sub');
-  const cardNo = normalizedHeaders.get('x-authenticated-card-no');
-  return sub && cardNo ? { sub, cardNo } : null;
+  const email = normalizedHeaders.get('x-authenticated-email');
+  return email ? { email } : null;
+}
+
+async function resolveCardNo(
+  dependencies: PushApiDependencies,
+  email: string,
+): Promise<string | null> {
+  return (
+    (await dependencies.loadEmailCardNumbers()).get(normalizeEmail(email)) ??
+    null
+  );
 }
 
 function parseBody(event: FunctionUrlEvent): unknown {

@@ -13,12 +13,14 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
       return errorResponse(400, 'Invalid CloudFront request.');
     }
 
-    removeHeader(request.headers, 'x-authenticated-sub');
     removeHeader(request.headers, 'x-authenticated-card-no');
+    removeHeader(request.headers, 'x-authenticated-email');
 
     if (request.uri === '/status') {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
-        return errorResponse(405, 'Method not allowed.', { allow: 'GET, HEAD' });
+        return errorResponse(405, 'Method not allowed.', {
+          allow: 'GET, HEAD',
+        });
       }
     } else if (request.uri === '/subscriptions') {
       if (request.method !== 'POST' && request.method !== 'DELETE') {
@@ -41,7 +43,7 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         ...configuration,
         issuer,
         loadJwks,
-        requireCardNo: request.uri === '/subscriptions',
+        requireEmail: request.uri === '/subscriptions',
       });
     } catch (error) {
       if (error instanceof InvalidTokenError) {
@@ -53,12 +55,9 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
 
     removeHeader(request.headers, 'authorization');
     removeHeader(request.headers, 'x-cognito-id-token');
-    request.headers['x-authenticated-sub'] = [
-      { key: 'X-Authenticated-Sub', value: claims.sub },
-    ];
-    if (typeof claims['custom:cardNo'] === 'string') {
-      request.headers['x-authenticated-card-no'] = [
-        { key: 'X-Authenticated-Card-No', value: claims['custom:cardNo'] },
+    if (request.uri === '/subscriptions') {
+      request.headers['x-authenticated-email'] = [
+        { key: 'X-Authenticated-Email', value: claims.email },
       ];
     }
 
@@ -84,9 +83,10 @@ async function verifyIdToken(token, configuration) {
     claims.token_use !== 'id' ||
     claims.aud !== configuration.clientId ||
     typeof claims.sub !== 'string' ||
-    (configuration.requireCardNo &&
-      (typeof claims['custom:cardNo'] !== 'string' ||
-        claims['custom:cardNo'].trim() === '')) ||
+    (configuration.requireEmail &&
+      (typeof claims.email !== 'string' ||
+        claims.email.trim() === '' ||
+        claims.email_verified !== true)) ||
     !Number.isInteger(claims.exp) ||
     claims.exp <= Math.floor(Date.now() / 1000) ||
     !Number.isInteger(claims.iat) ||
@@ -95,8 +95,13 @@ async function verifyIdToken(token, configuration) {
     throw new InvalidTokenError('JWT claims are invalid.');
   }
 
-  const jwks = await getCachedJwks(configuration.issuer, configuration.loadJwks);
-  let jwk = jwks.keys.find((key) => key.kid === header.kid && key.kty === 'RSA');
+  const jwks = await getCachedJwks(
+    configuration.issuer,
+    configuration.loadJwks,
+  );
+  let jwk = jwks.keys.find(
+    (key) => key.kid === header.kid && key.kty === 'RSA',
+  );
   if (!jwk) {
     jwksCache.delete(configuration.issuer);
     const refreshed = await configuration.loadJwks(configuration.issuer);

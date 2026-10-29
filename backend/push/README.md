@@ -10,13 +10,13 @@ Function URL は `AWS_IAM` と Origin Access Control (OAC) で保護し、CloudF
 ディストリビューションだけが呼び出せます。JWT の署名・有効期限・Cognito audience と
 issuer の検証は us-east-1 の Lambda@Edge が行います。ログイン可能なアカウントの制限は
 Google OAuth 側で設定します。Lambda@Edge は
-検証した `sub` と `custom:cardNo` を内部ヘッダーに設定し、OAC で保護された origin
-request policy を通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
+署名検証した ID token の `email` と `email_verified` を確認し、`/subscriptions` では
+メールアドレスを内部ヘッダーに設定して OAC で保護された origin request policy を
+通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
 
-各 Cognito ユーザーには図書館カード番号を `custom:cardNo` 属性として設定してください。
-購読先は Lambda@Edge
-が JWT の署名を検証して作成した `x-authenticated-card-no` で特定し、リクエスト本文から
-利用者IDを受け取らないため、別利用者の購読を登録・解除できません。
+この Lambda は `ALLOWED_EMAILS_PARAMETER_NAME` の SSM SecureString を読み、
+検証済みメールアドレスに対応するカード番号を取得します。購読先はこの対応表で特定し、
+リクエスト本文から利用者IDを受け取らないため、別利用者の購読を登録・解除できません。
 
 | Method   | Path             | JSON body                                                                                           | 動作                               |
 | -------- | ---------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
@@ -26,13 +26,16 @@ request policy を通じてこの Lambda に転送します。この Lambda は 
 成功応答は JSON で返ります。入力不正は `400`、CloudFront から認証済み identity header
 が渡されない場合は `401`、未対応ルート・method は `404/405` です。DynamoDB への
 アクセス失敗などの内部エラーは Lambda のエラーとして表面化します。
+SSM の値は `{"member@example.com":"2010610570"}` の形式です。メールアドレスは
+大文字・小文字を区別せず照合します。
 
 ## 設定
 
-| 環境変数               | 用途                                                    |
-| ---------------------- | ------------------------------------------------------- |
-| `SUBSCRIPTIONS_TABLE`  | 購読情報 DynamoDB テーブル名（パーティションキー `id`） |
-| `AWS_REGION`           | Lambda の標準リージョン設定を使用                       |
+| 環境変数                        | 用途                                                          |
+| ------------------------------- | ------------------------------------------------------------- |
+| `SUBSCRIPTIONS_TABLE`           | 購読情報 DynamoDB テーブル名（パーティションキー `id`）       |
+| `ALLOWED_EMAILS_PARAMETER_NAME` | 許可メールアドレスとカード番号の対応表を含む SSM SecureString |
+| `AWS_REGION`                    | Lambda の標準リージョン設定を使用                             |
 
 購読レコードは `id=USER#<cardNo>#DEVICE#<deviceId>` をキーとして保存されます。
 属性は `cardNo`, `deviceId`, `endpoint`, `keys.p256dh`, `keys.auth`, `updatedAt` です。
