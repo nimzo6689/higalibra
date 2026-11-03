@@ -13,7 +13,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['cheerio', 'tough-cookie'],
+      external: ['@js-temporal/polyfill', 'cheerio', 'tough-cookie'],
     },
   },
 });

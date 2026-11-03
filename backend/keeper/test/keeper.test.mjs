@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { Temporal } from '@js-temporal/polyfill';
 import { runKeeper } from '../src/keeper.ts';
 
 const today = Temporal.PlainDate.from('2026-10-27');
@@ -198,4 +199,20 @@ test('saves the latest snapshot even when push delivery fails', async () => {
   await assert.rejects(runKeeper(secret, deps), AggregateError);
   assert.equal(saved.length, 1);
   assert.equal(saved[0].users[0].reservedBooks[0].holdExpiresOn, '2026-10-31');
+});
+
+test('runs when Temporal is not available globally', async () => {
+  const previousTemporal = globalThis.Temporal;
+  globalThis.Temporal = undefined;
+  try {
+    const { deps } = dependencies({
+      status: { borrowedBooks: [], reservedBooks: [] },
+    });
+
+    const result = await runKeeper(secret, deps);
+
+    assert.equal(result.userCount, 1);
+  } finally {
+    globalThis.Temporal = previousTemporal;
+  }
 });

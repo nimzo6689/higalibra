@@ -1,4 +1,5 @@
 import { loadBuffer } from 'cheerio';
+import { Temporal } from '@js-temporal/polyfill';
 import type {
   AvailabilityStatus,
   BookGenre,

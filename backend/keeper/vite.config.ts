@@ -20,6 +20,7 @@ export default defineConfig({
         /^@aws-sdk\//,
         '@higalibra/push',
         '@higalibra/scraping',
+        '@js-temporal/polyfill',
         'web-push',
       ],
     },

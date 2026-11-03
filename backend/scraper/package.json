@@ -25,6 +25,7 @@
     "repl": "pnpm build && node --env-file=.env --interactive --experimental-repl-await --import ./repl.mjs"
   },
   "dependencies": {
+    "@js-temporal/polyfill": "^0.5.1",
     "cheerio": "^1.2.0"
   },
   "devDependencies": {

@@ -1,3 +1,4 @@
+import type { Temporal } from '@js-temporal/polyfill';
 import type { LibraryScraper } from '@higalibra/scraping';
 
 export interface KeeperUser {
