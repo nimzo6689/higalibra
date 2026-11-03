@@ -445,8 +445,8 @@ Resources:
   KeeperSchedule:
     Type: AWS::Events::Rule
     Properties:
-      Description: Run Keeper daily at 18:00 Japan Standard Time.
-      ScheduleExpression: cron(0 9 * * ? *)
+      Description: Run Keeper daily at 06:00 and 18:00 Japan Standard Time.
+      ScheduleExpression: cron(0 9,21 * * ? *)
       State: ENABLED
       Targets:
         - Arn: !GetAtt KeeperFunction.Arn
