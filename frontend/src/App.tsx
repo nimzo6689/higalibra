@@ -846,7 +846,16 @@ function ReservationsPage({ users }: { users: LibraryUser[] }) {
       const readyOrder =
         Number(b.book.holdExpiresOn !== null) -
         Number(a.book.holdExpiresOn !== null);
-      return readyOrder || a.book.title.localeCompare(b.book.title, 'ja');
+      const rankA = Number(a.book.rank.split('/')[0]);
+      const rankB = Number(b.book.rank.split('/')[0]);
+      const rankOrder =
+        (Number.isFinite(rankA) ? rankA : Number.POSITIVE_INFINITY) -
+        (Number.isFinite(rankB) ? rankB : Number.POSITIVE_INFINITY);
+      return (
+        readyOrder ||
+        rankOrder ||
+        a.book.title.localeCompare(b.book.title, 'ja')
+      );
     });
 
   return (
@@ -864,7 +873,7 @@ function ReservationsPage({ users }: { users: LibraryUser[] }) {
           onChange={setSelectedUser}
         />
         <span className="sort-hint">
-          <ArrowDownWideNarrow size={15} /> 取置済み優先
+          <ArrowDownWideNarrow size={15} /> 取置済み・予約順位順
         </span>
         <span className="total-pill">{books.length}冊</span>
       </div>
