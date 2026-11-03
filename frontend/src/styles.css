@@ -102,7 +102,7 @@ button:disabled {
 
 .brand-text small {
   color: #849087;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -110,7 +110,7 @@ button:disabled {
 .sidebar-label {
   margin: 51px 0 13px 12px;
   color: #99a199;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: 0.16em;
 }
@@ -133,7 +133,7 @@ button:disabled {
   background: transparent;
   color: #737e75;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   text-align: left;
   transition:
@@ -174,7 +174,7 @@ button:disabled {
   border: 1px solid #e8ede4;
   border-radius: 13px;
   color: #62806a;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -200,12 +200,12 @@ button:disabled {
 
 .profile-copy strong {
   color: #34443a;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .profile-copy small {
   color: #8d978f;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .avatar {
@@ -218,20 +218,20 @@ button:disabled {
   border-radius: 50%;
   background: #e4eee2;
   color: #45694d;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .avatar-small {
   width: 33px;
   height: 33px;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .avatar-tiny {
   width: 20px;
   height: 20px;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .avatar-1 {
@@ -282,7 +282,7 @@ button:disabled {
   align-items: center;
   gap: 7px;
   color: #7d887f;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .sync-dot {
@@ -344,7 +344,7 @@ button:disabled {
   gap: 6px;
   margin: 0 0 12px;
   color: #84917f;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 800;
   letter-spacing: 0.13em;
 }
@@ -374,7 +374,7 @@ p {
 .welcome-subtitle {
   margin: 9px 0 0;
   color: #89928a;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.7;
 }
 
@@ -389,7 +389,7 @@ p {
   background: #fbfcf8;
   color: #647367;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .summary-grid {
@@ -472,7 +472,7 @@ p {
   top: 27px;
   left: 67px;
   color: #657368;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -498,7 +498,7 @@ p {
   margin-top: auto;
   padding-top: 10px;
   color: #89938a;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .summary-foot svg:last-child {
@@ -558,14 +558,14 @@ p {
 .section-heading h2 {
   margin: 0 0 3px;
   color: #35463a;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
 .section-heading p {
   margin: 0;
   color: #9aa198;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .count-pill {
@@ -576,7 +576,7 @@ p {
   margin-left: auto;
   padding: 0 7px;
   border-radius: 20px;
-  font-size: 11px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -627,7 +627,7 @@ p {
 .compact-book-copy strong {
   overflow: hidden;
   color: #39483c;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -636,7 +636,7 @@ p {
 .compact-book-copy span {
   overflow: hidden;
   color: #9aa198;
-  font-size: 9px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -671,7 +671,7 @@ p {
   border-radius: 7px;
   background: #fbf1e6;
   color: #a8713d;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -712,12 +712,12 @@ p {
 
 .empty-message strong {
   color: #59685d;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .empty-message small {
   color: #a0a8a0;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .text-link {
@@ -730,7 +730,7 @@ p {
   background: transparent;
   color: #62816a;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -781,19 +781,19 @@ p {
 
 .promo-copy small {
   color: #839783;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.13em;
 }
 
 .promo-copy strong {
   color: #3c6044;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .promo-copy span {
   color: #839184;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .promo-arrow {
@@ -859,12 +859,12 @@ p {
 
 .push-card-copy strong {
   color: #47564a;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .push-card-copy span {
   color: #9aa198;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .push-toggle {
@@ -880,7 +880,7 @@ p {
   background: #f1f6ef;
   color: #537258;
   cursor: pointer;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -894,7 +894,7 @@ p {
   position: absolute;
   margin-top: 79px;
   color: #587d5c;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .push-card {
@@ -911,7 +911,7 @@ p {
   gap: 6px;
   margin: -8px 0 0;
   color: #a0a89f;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .page-footer {
@@ -920,7 +920,7 @@ p {
   gap: 15px;
   padding: 0 clamp(28px, 5vw, 72px) 18px;
   color: #a2aaa1;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .page-intro {
@@ -944,7 +944,7 @@ p {
 
 .page-intro .eyebrow {
   margin-bottom: 3px;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .page-intro h1 {
@@ -953,7 +953,7 @@ p {
 
 .page-intro .welcome-subtitle {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .list-toolbar {
@@ -978,7 +978,7 @@ p {
   background: #fff;
   color: #526256;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .filter-select > svg {
@@ -993,7 +993,7 @@ p {
   align-items: center;
   gap: 5px;
   color: #929b93;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .total-pill {
@@ -1002,7 +1002,7 @@ p {
   border-radius: 20px;
   background: #eaf0e8;
   color: #5a795e;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1055,7 +1055,7 @@ p {
   max-width: 70px;
   overflow: hidden;
   color: currentColor;
-  font-size: 8px;
+  font-size: 12px;
   opacity: 0.78;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1081,14 +1081,14 @@ p {
   align-items: center;
   gap: 5px;
   color: #77837a;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .genre-label {
   overflow: hidden;
   color: #a2aaa2;
-  font-size: 9px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1099,7 +1099,7 @@ p {
   overflow: hidden;
   margin: 10px 0 4px;
   color: #35473a;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   line-height: 1.55;
   -webkit-box-orient: vertical;
@@ -1110,7 +1110,7 @@ p {
   overflow: hidden;
   margin: 0;
   color: #969f97;
-  font-size: 9px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1132,12 +1132,12 @@ p {
 
 .book-meta span {
   color: #a1a9a1;
-  font-size: 8px;
+  font-size: 12px;
 }
 
 .book-meta strong {
   color: #657368;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 600;
 }
 
@@ -1157,7 +1157,7 @@ p {
 .book-status {
   overflow: hidden;
   color: #89948b;
-  font-size: 8px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1214,7 +1214,7 @@ p {
   margin-left: auto;
   padding: 5px 8px;
   border-radius: 7px;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1234,7 +1234,7 @@ p {
   flex-wrap: wrap;
   gap: 13px;
   color: #9ba39b;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .reservation-meta strong {
@@ -1255,7 +1255,7 @@ p {
   border: 1px solid #e8ece5;
   border-radius: 50%;
   color: #7b897d;
-  font-size: 9px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -1291,7 +1291,7 @@ p {
 .empty-panel p {
   margin: 0;
   color: #969f97;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .button-secondary {
@@ -1305,7 +1305,7 @@ p {
   background: #f4f7f1;
   color: #55775b;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1350,12 +1350,12 @@ p {
 
 .library-card-top strong {
   color: #344a39;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .library-card-top small {
   color: #91a092;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.13em;
 }
@@ -1366,7 +1366,7 @@ p {
   border: 1px solid #e4e9e0;
   border-radius: 20px;
   color: #879286;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .member-tabs {
@@ -1387,7 +1387,7 @@ p {
   background: transparent;
   color: #879087;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .member-tab.selected {
@@ -1414,7 +1414,7 @@ p {
 
 .member-label {
   color: #8c9a8b;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.17em;
 }
@@ -1430,19 +1430,19 @@ p {
 .member-info h2 small {
   color: #879186;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .member-number-label {
   margin-bottom: 5px;
   color: #9aa39a;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .member-number {
   color: #58675a;
   font-family: Georgia, serif;
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.08em;
   overflow-wrap: anywhere;
 }
@@ -1469,7 +1469,7 @@ p {
   margin-top: 4px;
   color: #566258;
   font-family: Georgia, serif;
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.18em;
 }
 
@@ -1478,7 +1478,7 @@ p {
   align-items: center;
   gap: 8px;
   color: #a97a4e;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -1489,7 +1489,7 @@ p {
   padding: 12px 22px;
   background: #f6f8f3;
   color: #849084;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .card-sparkle {
@@ -1517,7 +1517,7 @@ p {
 .barcode-tip h3 {
   margin: 13px 0 11px;
   color: #46564a;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .barcode-tip ul {
@@ -1527,7 +1527,7 @@ p {
   margin: 0;
   padding-left: 17px;
   color: #7e8a80;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.65;
 }
 
@@ -1540,7 +1540,7 @@ p {
   padding-top: 12px;
   border-top: 1px solid #eff1ec;
   color: #9aa29a;
-  font-size: 9px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
@@ -1561,12 +1561,12 @@ p {
 }
 
 .notice strong {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .notice p {
   margin: 3px 0 0;
-  font-size: 10px;
+  font-size: 14px;
 }
 
 .notice-action {
@@ -1576,7 +1576,7 @@ p {
   background: #fff;
   color: #9a5c4d;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -1587,7 +1587,7 @@ p {
   justify-content: center;
   gap: 11px;
   color: #718074;
-  font-size: 12px;
+  font-size: 14px;
 }
 
 .loading-screen {
@@ -1649,7 +1649,7 @@ p {
 .login-copy {
   margin-bottom: 24px;
   color: #849086;
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.9;
 }
 
@@ -1665,7 +1665,7 @@ p {
   background: var(--green);
   color: #fff;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   transition: background 150ms ease;
 }
@@ -1685,7 +1685,7 @@ p {
   gap: 6px;
   margin: 19px 0 0;
   color: #97a198;
-  font-size: 9px;
+  font-size: 13px;
 }
 
 .login-foot svg {
@@ -1695,7 +1695,7 @@ p {
 .config-hint {
   margin: 11px 0 0;
   color: #9d7551;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -1708,7 +1708,7 @@ p {
   border-radius: 9px;
   background: #fff1ed;
   color: #a74d3e;
-  font-size: 10px;
+  font-size: 14px;
   line-height: 1.6;
 }
 
@@ -1801,7 +1801,7 @@ p {
   bottom: 17px;
   margin: 0;
   color: #a0ab9e;
-  font-size: 8px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.18em;
 }
@@ -1888,11 +1888,11 @@ p {
   }
 
   .mobile-brand .brand-text strong {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .mobile-brand .brand-text small {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .topbar-right {
@@ -1900,7 +1900,7 @@ p {
   }
 
   .sync-status {
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .icon-button,
@@ -1937,7 +1937,7 @@ p {
     gap: 4px;
     padding: 3px;
     border-radius: 10px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .mobile-nav-wrap .nav-item.active {
@@ -1972,7 +1972,7 @@ p {
 
   .welcome-subtitle {
     max-width: 290px;
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .date-chip {
@@ -2004,7 +2004,7 @@ p {
   .summary-title {
     top: 23px;
     left: 55px;
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .summary-number {
@@ -2014,7 +2014,7 @@ p {
 
   .summary-foot {
     gap: 4px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .summary-foot svg {
@@ -2041,17 +2041,17 @@ p {
   }
 
   .section-heading h2 {
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .section-heading p {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .count-pill {
     min-width: 22px;
     height: 22px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .compact-book {
@@ -2069,17 +2069,17 @@ p {
   }
 
   .compact-book-copy strong {
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .compact-book-copy span {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .due-label,
   .ready-label {
     padding: 4px 5px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .empty-message {
@@ -2088,11 +2088,11 @@ p {
   }
 
   .empty-message strong {
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .empty-message small {
-    font-size: 8px;
+    font-size: 12px;
     line-height: 1.5;
   }
 
@@ -2111,7 +2111,7 @@ p {
   }
 
   .promo-copy strong {
-    font-size: 11px;
+    font-size: 14px;
   }
 
   .push-card {
@@ -2121,11 +2121,11 @@ p {
   }
 
   .push-card-copy strong {
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .push-card-copy span {
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .push-toggle {
@@ -2137,12 +2137,12 @@ p {
     position: static;
     width: 100%;
     margin: -3px 0 0 45px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .page-footer {
     padding: 0 19px 12px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .page-intro {
@@ -2170,12 +2170,12 @@ p {
   .filter-select select {
     min-width: 112px;
     padding: 8px 28px 8px 9px;
-    font-size: 10px;
+    font-size: 14px;
   }
 
   .sort-hint {
     gap: 4px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .sort-hint svg {
@@ -2184,7 +2184,7 @@ p {
 
   .total-pill {
     padding: 5px 8px;
-    font-size: 9px;
+    font-size: 13px;
   }
 
   .book-grid {
@@ -2207,7 +2207,7 @@ p {
 
   .borrowed-card h2,
   .reservation-main h2 {
-    font-size: 12px;
+    font-size: 14px;
   }
 
   .reservation-card {
@@ -2223,12 +2223,12 @@ p {
   .reservation-rank {
     min-width: 35px;
     height: 35px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .reservation-meta {
     gap: 6px 11px;
-    font-size: 8px;
+    font-size: 12px;
   }
 
   .barcode-layout {
@@ -2297,7 +2297,7 @@ p {
   .due-label,
   .ready-label {
     padding: 3px 4px;
-    font-size: 7px;
+    font-size: 12px;
   }
 
   .page-footer {
