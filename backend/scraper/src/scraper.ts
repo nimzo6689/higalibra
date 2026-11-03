@@ -30,7 +30,8 @@ export class Scraper implements LibraryScraper {
     const html = await this.session.getHtml('/OPWUSERINFO.CSP', {
       updateCookies: false,
     });
-    const token = extractToken(html, 0);
+    // 延長処理には 14 番目（インデックスは 13）のトークンを使用する
+    const token = extractToken(html, 13);
     const sid = await this.session.getSid();
 
     return this.session.post(
