@@ -349,6 +349,9 @@ Resources:
       GenerateSecret: false
       PreventUserExistenceErrors: ENABLED
       EnableTokenRevocation: true
+      RefreshTokenValidity: 90
+      TokenValidityUnits:
+        RefreshToken: days
       AllowedOAuthFlowsUserPoolClient: true
       AllowedOAuthFlows:
         - code

@@ -27,6 +27,7 @@ import {
   completeLogin,
   getAuthConfiguration,
   readSession,
+  refreshSession,
   signOut,
   type AuthSession,
 } from './auth';
@@ -77,7 +78,14 @@ export default function App() {
         const callbackSession = authConfiguration
           ? await completeLogin(authConfiguration)
           : null;
-        if (active) setSession(callbackSession ?? readSession());
+        const storedSession = callbackSession ?? readSession();
+        const session =
+          storedSession &&
+          storedSession.expiresAt <= Date.now() &&
+          authConfiguration
+            ? await refreshSession(authConfiguration, storedSession)
+            : storedSession;
+        if (active) setSession(session);
       } catch (error) {
         if (active) setAuthError(errorMessage(error));
       } finally {
@@ -123,6 +131,32 @@ export default function App() {
           setIsLoading(false);
         }
       });
+  }, [session]);
+
+  useEffect(() => {
+    if (!session || !authConfiguration) return;
+
+    let timeout: ReturnType<typeof setTimeout>;
+    const refresh = async () => {
+      try {
+        setSession(await refreshSession(authConfiguration, session));
+        setAuthError('');
+      } catch (error) {
+        setAuthError(errorMessage(error));
+        const remaining = session.expiresAt - Date.now();
+        if (remaining <= 0) {
+          setSession(null);
+          return;
+        }
+        timeout = setTimeout(refresh, Math.min(30_000, remaining));
+      }
+    };
+    timeout = setTimeout(
+      refresh,
+      Math.max(0, session.expiresAt - Date.now() - 60_000),
+    );
+
+    return () => clearTimeout(timeout);
   }, [session]);
 
   useEffect(() => {

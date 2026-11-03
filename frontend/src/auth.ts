@@ -1,6 +1,7 @@
-const TOKEN_STORAGE_KEY = 'mesh.id-token';
+const TOKEN_STORAGE_KEY = 'mesh.auth-session';
 const STATE_STORAGE_KEY = 'mesh.oauth-state';
 const VERIFIER_STORAGE_KEY = 'mesh.pkce-verifier';
+const REFRESH_TOKEN_VALIDITY_MS = 90 * 24 * 60 * 60 * 1000;
 
 export interface AuthConfiguration {
   domain: string;
@@ -11,6 +12,8 @@ export interface AuthConfiguration {
 export interface AuthSession {
   idToken: string;
   expiresAt: number;
+  refreshToken: string;
+  refreshExpiresAt: number;
 }
 
 export function getAuthConfiguration(): AuthConfiguration | null {
@@ -91,20 +94,62 @@ export async function completeLogin(
     !('id_token' in tokens) ||
     typeof tokens.id_token !== 'string' ||
     !('expires_in' in tokens) ||
-    typeof tokens.expires_in !== 'number'
+    typeof tokens.expires_in !== 'number' ||
+    !('refresh_token' in tokens) ||
+    typeof tokens.refresh_token !== 'string'
   ) {
     throw new Error('認証サーバーから有効な ID トークンが返されませんでした。');
   }
+  const now = Date.now();
   const session: AuthSession = {
     idToken: tokens.id_token,
-    expiresAt: Date.now() + tokens.expires_in * 1000,
+    expiresAt: now + tokens.expires_in * 1000,
+    refreshToken: tokens.refresh_token,
+    refreshExpiresAt: now + REFRESH_TOKEN_VALIDITY_MS,
   };
-  sessionStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(session));
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(session));
   return session;
 }
 
+export async function refreshSession(
+  configuration: AuthConfiguration,
+  session: AuthSession,
+): Promise<AuthSession> {
+  const response = await fetch(new URL('/oauth2/token', configuration.domain), {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      client_id: configuration.clientId,
+      refresh_token: session.refreshToken,
+    }),
+  });
+  if (!response.ok) {
+    throw new Error(`ログイン状態の更新に失敗しました (HTTP ${response.status})。`);
+  }
+
+  const tokens: unknown = await response.json();
+  if (
+    typeof tokens !== 'object' ||
+    tokens === null ||
+    !('id_token' in tokens) ||
+    typeof tokens.id_token !== 'string' ||
+    !('expires_in' in tokens) ||
+    typeof tokens.expires_in !== 'number'
+  ) {
+    throw new Error('認証サーバーから有効な更新トークンが返されませんでした。');
+  }
+  const refreshedSession: AuthSession = {
+    ...session,
+    idToken: tokens.id_token,
+    expiresAt: Date.now() + tokens.expires_in * 1000,
+  };
+  localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(refreshedSession));
+  return refreshedSession;
+}
+
 export function readSession(): AuthSession | null {
-  const saved = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  const saved = localStorage.getItem(TOKEN_STORAGE_KEY);
   if (!saved) return null;
 
   try {
@@ -116,21 +161,30 @@ export function readSession(): AuthSession | null {
       typeof value.idToken === 'string' &&
       'expiresAt' in value &&
       typeof value.expiresAt === 'number' &&
-      value.expiresAt > Date.now()
+      'refreshToken' in value &&
+      typeof value.refreshToken === 'string' &&
+      'refreshExpiresAt' in value &&
+      typeof value.refreshExpiresAt === 'number' &&
+      value.refreshExpiresAt > Date.now()
     ) {
-      return { idToken: value.idToken, expiresAt: value.expiresAt };
+      return {
+        idToken: value.idToken,
+        expiresAt: value.expiresAt,
+        refreshToken: value.refreshToken,
+        refreshExpiresAt: value.refreshExpiresAt,
+      };
     }
   } catch {
-    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    localStorage.removeItem(TOKEN_STORAGE_KEY);
     return null;
   }
 
-  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
   return null;
 }
 
 export function signOut(configuration: AuthConfiguration): void {
-  sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  localStorage.removeItem(TOKEN_STORAGE_KEY);
   const url = new URL('/logout', configuration.domain);
   url.search = new URLSearchParams({
     client_id: configuration.clientId,
