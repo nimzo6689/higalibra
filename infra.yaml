@@ -425,7 +425,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-keeper'
-      Runtime: nodejs24.x
+      Runtime: nodejs26.x
       Handler: dist/index.handler
       Role: !GetAtt KeeperExecutionRole.Arn
       Timeout: 900
@@ -510,7 +510,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-dash'
-      Runtime: nodejs24.x
+      Runtime: nodejs26.x
       Handler: dist/index.handler
       Role: !GetAtt DashExecutionRole.Arn
       Timeout: 900
@@ -583,7 +583,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-push'
-      Runtime: nodejs24.x
+      Runtime: nodejs26.x
       Handler: dist/index.handler
       Role: !GetAtt PushExecutionRole.Arn
       Timeout: 30
@@ -656,7 +656,7 @@ Resources:
     Type: AWS::Lambda::Function
     Properties:
       FunctionName: !Sub '${AWS::StackName}-cognito-pre-sign-up'
-      Runtime: nodejs24.x
+      Runtime: nodejs26.x
       Handler: dist/index.preSignUpHandler
       Role: !GetAtt CognitoPreSignUpExecutionRole.Arn
       Timeout: 10

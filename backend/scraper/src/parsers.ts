@@ -1,5 +1,4 @@
 import { loadBuffer } from 'cheerio';
-import { Temporal } from '@js-temporal/polyfill';
 import type {
   AvailabilityStatus,
   BookGenre,
@@ -107,6 +106,10 @@ function parseReservationRank(value: string): {
   userRank: number;
   totalReservations: number;
 } {
+  if (value === '準備中') {
+    return { userRank: 1, totalReservations: 1 };
+  }
+
   const match = /^(\d+)\s*\/\s*(\d+)$/.exec(value);
   if (!match) {
     throw new Error(
@@ -150,10 +153,25 @@ function parseOptionalLibraryDate(
 
 function parsePublicationDate(value: string): Temporal.PlainDate {
   const normalizedValue = value.trim();
-  const match = /^(\d{4})(?:\.(\d{1,2}))?$/.exec(normalizedValue);
+  const wrappers: Record<string, string> = {
+    '[': ']',
+    '<': '>',
+    '(': ')',
+    '【': '】',
+    '「': '」',
+    '『': '』',
+    '《': '》',
+    '"': '"',
+  };
+  const closingWrapper = wrappers[normalizedValue[0]];
+  const unwrappedValue =
+    closingWrapper && normalizedValue.endsWith(closingWrapper)
+      ? normalizedValue.slice(1, -1)
+      : normalizedValue;
+  const match = /^(\d{4})(?:\.(\d{1,2}))?$/.exec(unwrappedValue);
   if (!match) {
     throw new Error(
-      `Invalid publishedOn: expected YYYY or YYYY.M, received ${JSON.stringify(value)}.`,
+      `Invalid publishedOn: expected YYYY or YYYY.M, optionally enclosed in matching [], <>, (), 【】, 「」, 『』, 《》, or "", received ${JSON.stringify(value)}.`,
     );
   }
 

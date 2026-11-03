@@ -83,6 +83,4 @@ pnpm --filter @higalibra/keeper format:check
 Lambda にデプロイする際は、本パッケージと workspace 依存 package の production
 dependencies を含めてください。ビルド成果物の `dist/index.js` が Lambda の ESM
 エントリポイントで、パッケージルートを zip 化する場合はハンドラーを
-`dist/index.handler` に設定します。AWS Lambda では Node.js 24 を使用してください。
-貸出日計算とスクレイピングでは `@js-temporal/polyfill` を使用するため、
-Node.js の組み込み `Temporal` API に依存しません。
+`dist/index.handler` に設定します。

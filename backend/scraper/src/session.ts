@@ -1,11 +1,10 @@
-import { CookieJar } from 'tough-cookie';
 import type { ScraperOptions } from './types.js';
 
 export class LibrarySession {
   private readonly baseUrl: string;
   private readonly cardNo: string;
   private readonly password: string;
-  private readonly jar = new CookieJar();
+  private readonly cookies = new Map<string, string>();
   private authentication?: Promise<void>;
 
   constructor(options: ScraperOptions) {
@@ -27,10 +26,7 @@ export class LibrarySession {
 
   async getSid(): Promise<string> {
     await this.ensureAuthenticated();
-    const cookies = await this.jar.getCookies(
-      `${this.baseUrl}/OPWUSERLOGIN.CSP`,
-    );
-    const sid = cookies.find((cookie) => cookie.key === 'SID')?.value;
+    const sid = this.cookies.get('SID');
     if (!sid) {
       throw new Error(
         'The library login response did not include a SID cookie.',
@@ -74,7 +70,7 @@ export class LibrarySession {
       );
     }
 
-    await this.discard(await this.rawRequest('/OPWUSERCONF.CSP'));
+    await this.discard(await this.rawRequest('/OPWUSERLOGIN.CSP'));
     const loginBody = new URLSearchParams({
       usercardno: this.cardNo,
       userpasswd: this.password,
@@ -114,10 +110,10 @@ export class LibrarySession {
   ): Promise<Response> {
     const url = new URL(path.replace(/^\/+/, ''), `${this.baseUrl}/`);
     const headers = new Headers(init.headers);
-    const cookie = await this.jar.getCookieString(url.href);
-    if (cookie) {
-      headers.set('Cookie', cookie);
-    }
+    headers.set(
+      'Cookie',
+      Array.from(this.cookies, ([key, value]) => `${key}=${value}`).join('; '),
+    );
 
     if (options.dumpRequest) {
       const dumpHeaders = new Headers(headers);
@@ -145,7 +141,17 @@ export class LibrarySession {
     const response = await fetch(url, { ...init, headers, redirect: 'manual' });
     if (options.updateCookies !== false) {
       for (const setCookie of response.headers.getSetCookie()) {
-        await this.jar.setCookie(setCookie, url.href);
+        const [pair] = setCookie.split(';');
+        const separator = pair.indexOf('=');
+        if (separator <= 0) {
+          continue;
+        }
+
+        const key = pair.slice(0, separator).trim();
+        const value = pair.slice(separator + 1).trim();
+        if (key && value) {
+          this.cookies.set(key, value);
+        }
       }
     }
 
