@@ -12,6 +12,7 @@ export interface KeeperConfiguration {
   statusBucket: string;
   statusKey: string;
   subscriptionsTable: string;
+  imageUrlCacheTable: string;
   region?: string;
 }
 
@@ -28,6 +29,10 @@ export function readKeeperConfiguration(
     subscriptionsTable: requiredEnvironmentValue(
       environment,
       'SUBSCRIPTIONS_TABLE',
+    ),
+    imageUrlCacheTable: requiredEnvironmentValue(
+      environment,
+      'IMAGE_URL_CACHE_TABLE',
     ),
     region: environment.AWS_REGION,
   };

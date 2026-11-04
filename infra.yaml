@@ -101,6 +101,22 @@ Resources:
       PointInTimeRecoverySpecification:
         PointInTimeRecoveryEnabled: true
 
+  ImageUrlCacheTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: title
+          AttributeType: S
+      KeySchema:
+        - AttributeName: title
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      SSESpecification:
+        SSEEnabled: true
+
   MeshBucket:
     Type: AWS::S3::Bucket
     Properties:
@@ -449,6 +465,11 @@ Resources:
               - Effect: Allow
                 Action: dynamodb:Scan
                 Resource: !GetAtt SubscriptionsTable.Arn
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                Resource: !GetAtt ImageUrlCacheTable.Arn
 
   KeeperParameterAccessPolicy:
     Type: AWS::IAM::Policy
@@ -487,6 +508,7 @@ Resources:
           STATUS_BUCKET: !Ref StatusBucket
           STATUS_KEY: !Ref StatusKey
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+          IMAGE_URL_CACHE_TABLE: !Ref ImageUrlCacheTable
 
   KeeperFunctionUrl:
     Type: AWS::Lambda::Url
@@ -764,6 +786,9 @@ Outputs:
   SubscriptionsTableName:
     Description: DynamoDB table containing Web Push subscriptions.
     Value: !Ref SubscriptionsTable
+  ImageUrlCacheTableName:
+    Description: DynamoDB table containing cached book image URLs.
+    Value: !Ref ImageUrlCacheTable
   PushFunctionUrl:
     Description: Same-origin CloudFront base URL for status, Keeper, and subscription requests.
     Value: !Sub 'https://${MeshDistribution.DomainName}/'

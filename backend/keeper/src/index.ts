@@ -6,6 +6,7 @@ import {
   readKeeperConfiguration,
   S3StatusStore,
 } from './aws.js';
+import { DynamoDbImageUrlCache } from './image-url-cache.js';
 import {
   createKeeperApiHandler,
   type KeeperApiEvent,
@@ -48,6 +49,10 @@ async function runConfiguredKeeper(): Promise<KeeperResult> {
     clients.ssm,
     configuration.parameterName,
   );
+  const imageUrlCache = new DynamoDbImageUrlCache(
+    clients.dynamodb,
+    configuration.imageUrlCacheTable,
+  );
 
   return runKeeper(secret, {
     statusStore: new S3StatusStore(
@@ -60,7 +65,7 @@ async function runConfiguredKeeper(): Promise<KeeperResult> {
       configuration.subscriptionsTable,
       secret.vapid,
     ),
-    createScraper,
+    createScraper: (options) => createScraper({ ...options, imageUrlCache }),
   });
 }
 

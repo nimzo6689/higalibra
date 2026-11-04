@@ -13,6 +13,7 @@ Lambda に次の環境変数を設定します。
 | `STATUS_BUCKET`         | 利用者状況 JSON を保存する S3 バケット           |
 | `STATUS_KEY`            | S3 オブジェクトキー（省略時 `user_status.json`） |
 | `SUBSCRIPTIONS_TABLE`   | Push 購読情報を格納する DynamoDB テーブル        |
+| `IMAGE_URL_CACHE_TABLE` | 書籍画像 URL キャッシュ用 DynamoDB テーブル      |
 | `AWS_REGION`            | AWS リージョン（Lambda の標準設定を利用）        |
 
 Parameter Store の `SecureString` に、以下の JSON を保存してください。図書館
@@ -63,7 +64,11 @@ REPL の使い方は [backend/dash/README.md](../dash/README.md) を参照して
 DynamoDB の購読項目は `cardNo`, `endpoint`, `keys.p256dh`, `keys.auth` を持つ必要が
 あります。Keeper は `cardNo` で対象項目を Scan します。Lambda 実行ロールには
 設定したパラメーターの復号を伴う読み取り、S3 オブジェクトの読み書き、
-DynamoDB テーブルの Scan 権限が必要です。
+DynamoDB 購読テーブルの Scan と画像 URL キャッシュテーブルの GetItem / PutItem
+権限が必要です。画像 URL キャッシュは書籍タイトルをパーティションキーにし、
+画像 URL と書き込み時から 30 日後の有効期限を保存します。DynamoDB TTL により
+期限切れ項目を削除し、Keeper は TTL の削除遅延中も期限切れ URL をキャッシュとして
+返しません。
 
 初回実行時、S3 に状態ファイルがなければ空の前回状態として扱います。成功後、
 `user_status.json` のデータ設計に沿った JSON を保存します。延長対象は返却日まで
