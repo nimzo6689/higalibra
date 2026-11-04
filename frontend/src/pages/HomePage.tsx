@@ -275,11 +275,6 @@ export function HomePage({
           )}
         </section>
       </section>
-      {lastUpdated && (
-        <p className="updated-note">
-          <RefreshCw size={13} /> {formatDateTime(lastUpdated)} に更新
-        </p>
-      )}
     </div>
   );
 }
