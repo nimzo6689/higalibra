@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="18" fill="#315c46"/>
-  <rect x="7" y="7" width="50" height="50" rx="16" fill="#f3f5e9"/>
+  <circle cx="32" cy="32" r="32" fill="#f3f5e9"/>
   <g
-    transform="translate(14.5 14.5) scale(1.5)"
+    transform="translate(10.9 10.4) scale(1.8)"
     fill="none"
     stroke="#23332a"
     stroke-linecap="round"
