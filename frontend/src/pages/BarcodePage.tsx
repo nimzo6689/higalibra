@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import {
   Bell,
@@ -19,24 +19,44 @@ export function BarcodePage({
   lastUpdated?: string;
 }) {
   const [selectedCardNo, setSelectedCardNo] = useState(users[0]?.cardNo ?? '');
+  const barcodeRef = useRef<SVGSVGElement>(null);
   const selectedUser =
     users.find((user) => user.cardNo === selectedCardNo) ?? users[0];
   const cardNumber = selectedUser?.cardNo;
 
   useEffect(() => {
     if (!cardNumber) return;
-    const element = document.getElementById('library-barcode');
-    if (!(element instanceof SVGSVGElement)) return;
+    const element = barcodeRef.current;
+    if (!element) return;
     try {
       JsBarcode(element, cardNumber, {
         format: 'CODE128',
         displayValue: false,
-        height: 120,
+        height: 80,
         margin: 0,
         width: 2,
         background: '#ffffff',
         lineColor: '#19241d',
       });
+      element.setAttribute('width', '200px');
+      element.setAttribute('height', '120px');
+      element.setAttribute('viewBox', '0 0 200 120');
+      element.setAttribute('x', '0px');
+      element.setAttribute('y', '0px');
+
+      const background = element.firstElementChild;
+      if (background instanceof SVGRectElement) {
+        background.setAttribute('width', '200');
+        background.setAttribute('height', '120');
+      }
+
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('style', 'font:bold 20px monospace');
+      label.setAttribute('text-anchor', 'middle');
+      label.setAttribute('x', '90');
+      label.setAttribute('y', '100');
+      label.textContent = cardNumber;
+      element.append(label);
     } catch (error) {
       console.error('Could not render library card barcode.', error);
     }
@@ -99,13 +119,12 @@ export function BarcodePage({
             <h3 className="library-card-heading">東村山市立図書館</h3>
             <div className="barcode-wrap">
               {cardNumber ? (
-                <>
-                  <svg
-                    id="library-barcode"
-                    aria-label={`${selectedUser.name}さんの図書館バーコード`}
-                  />
-                  <strong>{cardNumber}</strong>
-                </>
+                <svg
+                  ref={barcodeRef}
+                  className="barcode"
+                  aria-label={`${selectedUser.name}さんの図書館バーコード、カード番号${cardNumber}`}
+                  role="img"
+                />
               ) : (
                 <div className="barcode-empty">
                   <CircleAlert size={20} />

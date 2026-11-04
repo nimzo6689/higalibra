@@ -1468,15 +1468,6 @@ p {
   height: 120px;
 }
 
-.barcode-wrap > strong {
-  margin-top: 1px;
-  color: #111;
-  font-size: 27px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  line-height: 1.2;
-}
-
 .barcode-wrap > .barcode-updated {
   margin-top: 14px;
   color: #7c7c7c;
@@ -2234,10 +2225,6 @@ p {
 
   .barcode-wrap {
     min-height: 190px;
-  }
-
-  .barcode-wrap > strong {
-    font-size: 24px;
   }
 
   .barcode-wrap > .barcode-updated {
