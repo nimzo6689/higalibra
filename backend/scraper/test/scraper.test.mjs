@@ -16,6 +16,7 @@ test('getUserStatus caches cover image URLs by book title', async () => {
         <td></td><td>更新できません</td><td><a href="books/borrowed">借りた本</a></td>
         <td>一般</td><td>barcode-1</td><td></td><td>2026/10/01</td><td>2026/10/31</td>
       </tr>
+      <tr><td></td><td>まだ更新できません</td></tr>
     </table></div>
     <div id="ContentRsv"><table class="el-table-bordered">
       <tr><th>rank</th></tr>
@@ -76,6 +77,7 @@ test('getUserStatus caches cover image URLs by book title', async () => {
       status.borrowedBooks[0].imageUrl,
       'https://affiliate.example/covers/borrowed.jpg',
     );
+    assert.equal(status.borrowedBooks[0].status, 'まだ更新できません');
     assert.equal(
       status.reservedBooks[0].imageUrl,
       'https://affiliate.example/covers/reserved.jpg',

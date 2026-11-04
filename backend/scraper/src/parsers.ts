@@ -13,17 +13,18 @@ import type {
 export function parseUserStatus(html: Buffer): UserStatus {
   const $ = loadBuffer(html);
 
-  const borrowedBooks: BorrowedBook[] = $(
+  const borrowedRows = $(
     '#ContentLend table.el-table-bordered tr:not(:first-child)',
-  )
-    .toArray()
+  ).toArray();
+  const borrowedBooks: BorrowedBook[] = borrowedRows
     .filter((_, index) => index % 2 === 0)
-    .map((row) => {
+    .map((row, index) => {
       const cells = $(row).children('td');
+      const statusCells = $(borrowedRows[index * 2 + 1]).children('td');
       return {
         status: parseEnum<BorrowedBookStatus>(
-          cellText(cells.eq(1)).replace(/\s+/g, ''),
-          ['更新回数に達しました。', '再貸出', '更新できません'],
+          cellText(statusCells.eq(1)).replace(/\s+/g, ''),
+          ['更新回数に達しました。', '再貸出', 'まだ更新できません', '予約待ちあり'],
           'status',
         ),
         title: cellText(cells.eq(2)),

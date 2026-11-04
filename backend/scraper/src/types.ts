@@ -13,7 +13,7 @@ export interface ImageUrlCache {
 }
 
 export type BorrowedBookStatus =
-  '更新回数に達しました。' | '再貸出' | '更新できません';
+  '更新回数に達しました。' | '再貸出' | 'まだ更新できません' | '予約待ちあり';
 
 export type BookGenre =
   '一般' | 'ティーンズ' | '児童' | '雑誌' | 'ＡＶ' | '電子書籍' | 'ｵｰﾃﾞｨｵﾌﾞｯｸ';
