@@ -388,7 +388,9 @@ export default function App() {
                 <BorrowedPage users={users} onNavigate={changeRoute} />
               )}
               {route === '/reservations' && <ReservationsPage users={users} />}
-              {route === '/barcode' && <BarcodePage users={users} />}
+              {route === '/barcode' && (
+                <BarcodePage users={users} lastUpdated={snapshot?.lastUpdated} />
+              )}
             </>
           )}
         </main>
@@ -955,7 +957,13 @@ function ReservationCard({
   );
 }
 
-function BarcodePage({ users }: { users: LibraryUser[] }) {
+function BarcodePage({
+  users,
+  lastUpdated,
+}: {
+  users: LibraryUser[];
+  lastUpdated?: string;
+}) {
   const [selectedCardNo, setSelectedCardNo] = useState(users[0]?.cardNo ?? '');
   const selectedUser =
     users.find((user) => user.cardNo === selectedCardNo) ?? users[0];
@@ -982,13 +990,8 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
 
   if (!selectedUser) {
     return (
-      <div className="page-stack">
-        <PageIntro
-          eyebrow="LIBRARY CARD"
-          title="利用証"
-          subtitle="図書館で提示する利用証です。"
-          icon={<ScanBarcode size={22} />}
-        />
+      <div className="page-stack barcode-page">
+        <h1 className="legacy-page-heading">利用者のページ</h1>
         <EmptyPanel
           icon={<ScanBarcode size={24} />}
           title="利用者情報がありません"
@@ -998,26 +1001,24 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
     );
   }
 
+  const readyBooks = selectedUser.reservedBooks.filter(
+    (book) => book.holdExpiresOn !== null,
+  );
+  const dueBooks = selectedUser.borrowedBooks.filter(
+    (book) => daysUntil(book.returnDate) <= 3,
+  );
+
   return (
-    <div className="page-stack">
-      <PageIntro
-        eyebrow="LIBRARY CARD"
-        title="利用証"
-        subtitle="カウンターでこのバーコードをご提示ください。"
-        icon={<ScanBarcode size={22} />}
-      />
-      <div className="barcode-layout">
-        <section className="barcode-card">
-          <div className="library-card-top">
-            <span className="library-emblem">
-              <LibraryBig size={21} />
-            </span>
-            <span>
-              <strong>市立図書館</strong>
-              <small>LIBRARY MEMBERSHIP</small>
-            </span>
-            <span className="card-chip">利用証</span>
-          </div>
+    <div className="page-stack barcode-page">
+      <h1 className="legacy-page-heading">利用者のページ</h1>
+      <section className="barcode-panel">
+        <h2 className="barcode-panel-heading">
+          <span className="barcode-panel-icon">
+            <ScanBarcode size={19} />
+          </span>
+          利用券バーコード
+        </h2>
+        <div className="barcode-panel-content">
           <div className="member-tabs" role="tablist" aria-label="利用者を選択">
             {users.map((user, index) => (
               <button
@@ -1034,18 +1035,8 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
               </button>
             ))}
           </div>
-          <div className="library-card-body">
-            <div className="member-info">
-              <span className="member-label">CARD HOLDER</span>
-              <h2>
-                {selectedUser.name}
-                <small> さん</small>
-              </h2>
-              <span className="member-number-label">利用者番号</span>
-              <strong className="member-number">
-                {cardNumber || '利用者番号は登録されていません'}
-              </strong>
-            </div>
+          <section className="library-card">
+            <h3 className="library-card-heading">東村山市立図書館</h3>
             <div className="barcode-wrap">
               {cardNumber ? (
                 <>
@@ -1053,7 +1044,7 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
                     id="library-barcode"
                     aria-label={`${selectedUser.name}さんの図書館バーコード`}
                   />
-                  <span>{cardNumber}</span>
+                  <strong>{cardNumber}</strong>
                 </>
               ) : (
                 <div className="barcode-empty">
@@ -1065,25 +1056,55 @@ function BarcodePage({ users }: { users: LibraryUser[] }) {
                   </span>
                 </div>
               )}
+              {lastUpdated && (
+                <span className="barcode-updated">
+                  (最終更新日時：{formatDateTime(lastUpdated)})
+                </span>
+              )}
             </div>
-          </div>
-          <div className="library-card-foot">
-            <span>この利用証をカウンターでご提示ください</span>
-            <span className="card-sparkle">✳</span>
+          </section>
+        </div>
+      </section>
+      <div className="barcode-information">
+        <section className="barcode-info-block">
+          <h2>
+            <Bell size={18} />
+            お知らせ
+          </h2>
+          {readyBooks.length === 0 && dueBooks.length === 0 ? (
+            <p className="barcode-info-empty">お知らせはありません</p>
+          ) : (
+            <ul>
+              {readyBooks.map((book) => (
+                <li key={`ready-${book.rank}`}>
+                  「{book.title}」が取置済みです
+                  {book.holdExpiresOn && (
+                    <span>（取置期限：{formatDate(book.holdExpiresOn)}）</span>
+                  )}
+                </li>
+              ))}
+              {dueBooks.map((book) => (
+                <li key={`due-${book.barcode}`}>
+                  「{book.title}」の返却期限は{formatDate(book.returnDate)}です
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+        <section className="barcode-info-block">
+          <h2>
+            <LibraryBig size={18} />
+            利用情報
+          </h2>
+          <div className="barcode-usage">
+            <p>
+              貸出中の本：<strong>{selectedUser.borrowedBooks.length}</strong>冊
+            </p>
+            <p>
+              予約中の本：<strong>{selectedUser.reservedBooks.length}</strong>冊
+            </p>
           </div>
         </section>
-        <aside className="barcode-tip">
-          <div className="tip-icon">
-            <Sparkles size={20} />
-          </div>
-          <h3>読み取りのヒント</h3>
-          <ul>
-            <li>画面の明るさを上げてください</li>
-            <li>バーコード全体を読み取り機に向けてください</li>
-            <li>画面の自動ロックを一時的にオフにすると便利です</li>
-          </ul>
-          <p>※ この画面を開いたままカウンターでご提示ください。</p>
-        </aside>
       </div>
     </div>
   );
