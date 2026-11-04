@@ -10,7 +10,12 @@ import {
   signOut,
   type AuthSession,
 } from './auth';
-import { disablePush, enablePush, hasPushSubscription } from './push';
+import {
+  disablePush,
+  enablePush,
+  hasPushSubscription,
+  registerExistingPushSubscription,
+} from './push';
 import { BarcodePage } from './pages/BarcodePage';
 import { BorrowedPage } from './pages/BorrowedPage';
 import { HomePage } from './pages/HomePage';
@@ -198,10 +203,48 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!session || !('serviceWorker' in navigator)) return;
-    void hasPushSubscription()
-      .then(setPushEnabled)
-      .catch((error: unknown) => setPushError(errorMessage(error)));
+    const currentSession = session;
+    if (!currentSession?.idToken || !('serviceWorker' in navigator)) return;
+    const idToken = currentSession.idToken;
+    let active = true;
+    async function synchronizePushSubscription() {
+      const subscriptionExists = await hasPushSubscription();
+      if (!active) return;
+      if (!subscriptionExists) {
+        setPushEnabled(false);
+        return;
+      }
+
+      const apiUrl = import.meta.env.VITE_PUSH_API_URL?.trim();
+      if (!apiUrl) {
+        throw new Error('通知 API の設定がありません。');
+      }
+
+      setPushBusy(true);
+      try {
+        const registered = await registerExistingPushSubscription(
+          apiUrl,
+          idToken,
+          authConfiguration,
+          setSession,
+        );
+        if (active) {
+          setPushEnabled(registered);
+          setPushError('');
+        }
+      } finally {
+        if (active) setPushBusy(false);
+      }
+    }
+
+    void synchronizePushSubscription().catch((error: unknown) => {
+      if (!active) return;
+      setPushEnabled(false);
+      setPushError(errorMessage(error));
+    });
+    return () => {
+      active = false;
+    };
   }, [session]);
 
   const changeRoute = useCallback((nextRoute: Route) => {

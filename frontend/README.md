@@ -26,7 +26,8 @@ Google OAuth クライアントのリダイレクト URI には
 Lambda@Edge が Cognito ID token を検証した後、非公開 StatusBucket の
 `user_status.json` を OAC 経由で返します。購読の POST / DELETE は同一 origin の
 `/subscriptions` behavior から Push Lambda に転送します。ブラウザーと API は同一 origin
-なので CORS は使用しません。画面の同期ボタンは認証済み `POST /keeper` で Keeper を実行し、
+なので CORS は使用しません。ログイン時にはブラウザーに残っている購読情報を再度 POST し、
+Push Lambda 側の購読状態と同期します。画面の同期ボタンは認証済み `POST /keeper` で Keeper を実行し、
 完了後に `/status` から S3 の最新データを取得します。ログイン後、表示中の定期更新、
 画面復帰時の更新、および再試行では引き続き `/status` のみを取得します。
 認証付き API が HTTP 401 を返した場合は、保存済み refresh token で ID token を更新し、

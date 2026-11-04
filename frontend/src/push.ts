@@ -20,6 +20,45 @@ export async function enablePush(
       userVisibleOnly: true,
       applicationServerKey: decodeVapidKey(vapidPublicKey),
     }));
+  await saveSubscription(
+    apiUrl,
+    idToken,
+    configuration,
+    onSessionRefresh,
+    subscription,
+  );
+}
+
+export async function registerExistingPushSubscription(
+  apiUrl: string,
+  idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
+): Promise<boolean> {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    return false;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return false;
+
+  await saveSubscription(
+    apiUrl,
+    idToken,
+    configuration,
+    onSessionRefresh,
+    subscription,
+  );
+  return true;
+}
+
+async function saveSubscription(
+  apiUrl: string,
+  idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
+  subscription: PushSubscription,
+): Promise<void> {
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'POST',
     headers: {
