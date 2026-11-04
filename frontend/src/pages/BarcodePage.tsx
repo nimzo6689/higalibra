@@ -31,7 +31,7 @@ export function BarcodePage({
       JsBarcode(element, cardNumber, {
         format: 'CODE128',
         displayValue: false,
-        height: 106,
+        height: 120,
         margin: 0,
         width: 2,
         background: '#ffffff',
