@@ -339,15 +339,6 @@ export default function App() {
                 size={18}
               />
             </button>
-            <button
-              className="mobile-profile"
-              onClick={() => {
-                if (authConfiguration) signOut(authConfiguration);
-              }}
-              aria-label="ログアウト"
-            >
-              <span className="avatar avatar-small">家</span>
-            </button>
           </div>
         </header>
 
