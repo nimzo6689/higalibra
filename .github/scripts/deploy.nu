@@ -243,6 +243,7 @@ let frontend_environment = {
   VITE_COGNITO_CLIENT_ID: $stack_outputs.CognitoUserPoolClientId
   VITE_COGNITO_REDIRECT_URI: $stack_outputs.MeshUrl
   VITE_STATUS_URL: $"($stack_outputs.MeshUrl)status"
+  VITE_KEEPER_API_URL: $stack_outputs.MeshUrl
   VITE_PUSH_API_URL: $stack_outputs.MeshUrl
   VITE_VAPID_PUBLIC_KEY: $env.VAPID_PUBLIC_KEY
 }

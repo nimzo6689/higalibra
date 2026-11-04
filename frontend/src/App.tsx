@@ -21,7 +21,7 @@ import {
   ShieldCheck,
   Sparkles,
 } from 'lucide-react';
-import { fetchUserStatus } from './api';
+import { executeKeeper, fetchUserStatus } from './api';
 import {
   beginLogin,
   completeLogin,
@@ -56,7 +56,9 @@ export default function App() {
   const [authError, setAuthError] = useState('');
   const [snapshot, setSnapshot] = useState<UserStatusSnapshot | null>(null);
   const [dataError, setDataError] = useState('');
+  const [syncError, setSyncError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isKeeperRunning, setIsKeeperRunning] = useState(false);
   const [route, setRoute] = useState<Route>(readRoute());
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
@@ -132,6 +134,30 @@ export default function App() {
         }
       });
   }, [session]);
+
+  const syncStatus = useCallback(async () => {
+    if (!session) return;
+    const apiUrl = import.meta.env.VITE_KEEPER_API_URL?.trim();
+    if (!apiUrl) {
+      setSyncError('VITE_KEEPER_API_URL が設定されていません。');
+      return;
+    }
+
+    statusRequest.current?.abort();
+    statusRequest.current = null;
+    setIsLoading(true);
+    setIsKeeperRunning(true);
+    setSyncError('');
+    setDataError('');
+    try {
+      await executeKeeper(apiUrl, session.idToken);
+    } catch (error) {
+      setSyncError(errorMessage(error));
+    } finally {
+      setIsKeeperRunning(false);
+    }
+    refreshStatus();
+  }, [session, refreshStatus]);
 
   useEffect(() => {
     if (!session || !authConfiguration) return;
@@ -331,12 +357,15 @@ export default function App() {
             </span>
             <button
               className="icon-button"
-              onClick={refreshStatus}
+              onClick={() => void syncStatus()}
               aria-label="利用状況を更新"
               title="利用状況を更新"
-              disabled={isLoading}
+              disabled={isLoading || isKeeperRunning}
             >
-              <RefreshCw className={isLoading ? 'spin' : ''} size={18} />
+              <RefreshCw
+                className={isLoading || isKeeperRunning ? 'spin' : ''}
+                size={18}
+              />
             </button>
             <button
               className="mobile-profile"
@@ -351,14 +380,21 @@ export default function App() {
         </header>
 
         <main className="page-content">
-          {dataError && (
+          {(dataError || syncError) && (
             <div className="notice notice-error" role="alert">
               <CircleAlert size={19} />
               <div>
-                <strong>データを読み込めません</strong>
-                <p>{dataError}</p>
+                <strong>
+                  {syncError
+                    ? 'Keeper の実行に失敗しました'
+                    : 'データを読み込めません'}
+                </strong>
+                <p>{[syncError, dataError].filter(Boolean).join(' ')}</p>
               </div>
-              <button onClick={refreshStatus} className="notice-action">
+              <button
+                onClick={syncError ? () => void syncStatus() : refreshStatus}
+                className="notice-action"
+              >
                 再試行
               </button>
             </div>
@@ -389,7 +425,10 @@ export default function App() {
               )}
               {route === '/reservations' && <ReservationsPage users={users} />}
               {route === '/barcode' && (
-                <BarcodePage users={users} lastUpdated={snapshot?.lastUpdated} />
+                <BarcodePage
+                  users={users}
+                  lastUpdated={snapshot?.lastUpdated}
+                />
               )}
             </>
           )}

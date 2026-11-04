@@ -15,14 +15,16 @@ CloudFormation スタックを更新してください。Lambda ZIP のみを差
 ロールのポリシーは更新されません。Keeper / Dash は状態・調査履歴を扱う各 S3 bucket の
 `s3:ListBucket` と object 権限を使います。Mesh のデータ API は同一 CloudFront
 origin にまとめ、`/status` は OAC で保護した StatusBucket origin、`/subscriptions` は
-OAC で保護した Push Lambda URL origin にルーティングします。
+OAC で保護した Push Lambda URL origin、`/keeper` は OAC で保護した Keeper Lambda URL
+origin にルーティングします。
 
 CloudFront の viewer-request Lambda@Edge は必ず us-east-1 に作成し、Cognito ID token の
 署名・audience・期限を検証します。ログイン可能なアカウントの制限は Google OAuth 側で
 設定します。GitHub Actions の AWS role には
 us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / CloudFormation の
-更新権限も必要です。Push Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが呼び出せる
-ようにします。認証は同一 origin の CloudFront data paths で行うため CORS は設定しません。
+更新権限も必要です。Push / Keeper Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが
+呼び出せるようにします。認証は同一 origin の CloudFront data paths で行うため CORS は
+設定しません。
 
 ## 初回セットアップ
 
@@ -114,16 +116,19 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Google アカウントのメールアドレスと SSM 対応表のメールアドレスが一致することを
    確認してください。
 
-   `/subscriptions` は Cognito ID token の署名・issuer・audience・期限とメール確認済み
-   claim を Lambda@Edge で検証し、Push API がメールアドレスから SSM 対応表を引いて
-   cardNo を解決します。メールアドレスをリクエスト本文から指定することはできません。
+   `/subscriptions` と `/keeper` は Cognito ID token の署名・issuer・audience・期限と
+   メール確認済み claim を Lambda@Edge で検証します。Push API はメールアドレスから SSM
+   対応表を引いて cardNo を解決します。メールアドレスをリクエスト本文から指定することは
+   できません。Mesh の同期ボタンは `/keeper` を呼び出し、Keeper 完了後に `/status` から
+   S3 の最新状態を再取得します。ログイン後や定期更新では Keeper を呼び出さず、S3 の状態を
+   取得します。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
-PWA はその CloudFront origin から `/status` と `/subscriptions` を呼びます。Cognito
+PWA はその CloudFront origin から `/status`、`/subscriptions`、`/keeper` を呼びます。Cognito
 Hosted UI はログイン画面の表示と PKCE code exchange に使用します。状態 S3 bucket は
 パブリックアクセスをブロックし、CloudFront OAC からのみ読み出せます。`/status` と
-`/subscriptions` の認証は Lambda@Edge が行い、静的なログイン画面と SPA shell はログイン前にも
-配信されます。
+`/subscriptions`、`/keeper` の認証は Lambda@Edge が行い、静的なログイン画面と SPA shell は
+ログイン前にも配信されます。
 
 ## Dash のローカルテスト
 

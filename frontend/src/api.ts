@@ -35,6 +35,25 @@ export async function fetchUserStatus(
   };
 }
 
+export async function executeKeeper(
+  apiUrl: string,
+  idToken: string,
+): Promise<void> {
+  const response = await fetch(new URL('/keeper', apiUrl), {
+    method: 'POST',
+    headers: { authorization: `Bearer ${idToken}` },
+    cache: 'no-store',
+  });
+  if (!response.ok) {
+    throw new Error(`Keeper の実行に失敗しました (HTTP ${response.status})。`);
+  }
+
+  const value: unknown = await response.json();
+  if (!isRecord(value) || value.success !== true) {
+    throw new Error('Keeper の実行に失敗しました。');
+  }
+}
+
 function parseUser(value: unknown, index: number): LibraryUser {
   const cardNo =
     isRecord(value) && typeof value.cardNo === 'string'

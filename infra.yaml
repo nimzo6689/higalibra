@@ -147,12 +147,22 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
-  PushOriginRequestPolicy:
+  KeeperOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-keeper-oac'
+        Description: CloudFront signed access to the Keeper Lambda URL.
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  ApiOriginRequestPolicy:
     Type: AWS::CloudFront::OriginRequestPolicy
     Properties:
       OriginRequestPolicyConfig:
-        Name: !Sub '${AWS::StackName}-push-origin-requests'
-        Comment: Forward only the verified identity and request content to Push.
+        Name: !Sub '${AWS::StackName}-api-origin-requests'
+        Comment: Forward only the verified identity and request content to APIs.
         HeadersConfig:
           HeaderBehavior: whitelist
           Headers:
@@ -195,6 +205,19 @@ Resources:
               OriginProtocolPolicy: https-only
               OriginSSLProtocols:
                 - TLSv1.2
+          - Id: KeeperLambdaOrigin
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt: KeeperFunctionUrl.FunctionUrl
+            OriginAccessControlId: !GetAtt KeeperOriginAccessControl.Id
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginReadTimeout: 120
+              OriginSSLProtocols:
+                - TLSv1.2
         CacheBehaviors:
           Fn::If:
             - HasEdgeAuthFunction
@@ -228,7 +251,27 @@ Resources:
                   - HEAD
                 Compress: true
                 CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
-                OriginRequestPolicyId: !Ref PushOriginRequestPolicy
+                OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+                LambdaFunctionAssociations:
+                  - EventType: viewer-request
+                    LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
+              - PathPattern: /keeper*
+                TargetOriginId: KeeperLambdaOrigin
+                ViewerProtocolPolicy: redirect-to-https
+                AllowedMethods:
+                  - GET
+                  - HEAD
+                  - OPTIONS
+                  - PUT
+                  - POST
+                  - PATCH
+                  - DELETE
+                CachedMethods:
+                  - GET
+                  - HEAD
+                Compress: true
+                CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+                OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
                 LambdaFunctionAssociations:
                   - EventType: viewer-request
                     LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
@@ -444,6 +487,30 @@ Resources:
           STATUS_BUCKET: !Ref StatusBucket
           STATUS_KEY: !Ref StatusKey
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
+
+  KeeperFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: AWS_IAM
+      TargetFunctionArn: !GetAtt KeeperFunction.Arn
+
+  KeeperFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref KeeperFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+      FunctionUrlAuthType: AWS_IAM
+
+  KeeperFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref KeeperFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+      InvokedViaFunctionUrl: true
 
   KeeperSchedule:
     Type: AWS::Events::Rule
@@ -698,7 +765,7 @@ Outputs:
     Description: DynamoDB table containing Web Push subscriptions.
     Value: !Ref SubscriptionsTable
   PushFunctionUrl:
-    Description: Same-origin CloudFront base URL for status and subscription requests.
+    Description: Same-origin CloudFront base URL for status, Keeper, and subscription requests.
     Value: !Sub 'https://${MeshDistribution.DomainName}/'
   StatusKey:
     Description: S3 object key served at the authenticated /status path.

@@ -25,7 +25,8 @@ pnpm install
 
 ### PWA の起動
 
-`frontend/.env.example` を `.env.local` にコピーし、Cognito、利用状況 API、Push API などの値を設定してから起動します。
+`frontend/.env.example` を `.env.local` にコピーし、Cognito、利用状況 API、Keeper API、
+Push API などの値を設定してから起動します。
 
 ```sh
 pnpm --filter @higalibra/mesh dev

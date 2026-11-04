@@ -13,6 +13,7 @@ Authorization Code Grant + PKCE でログインして状態 JSON と Web Push �
 | `VITE_COGNITO_CLIENT_ID`    | Cognito の公開 App Client ID                                  |
 | `VITE_COGNITO_REDIRECT_URI` | Hosted UI に登録したコールバック URL。未指定時は現在の origin |
 | `VITE_STATUS_URL`           | 同一 CloudFront origin の `/status` URL                       |
+| `VITE_KEEPER_API_URL`       | `/keeper` を配信する CloudFront の同一 origin                 |
 | `VITE_PUSH_API_URL`         | `/subscriptions` を配信する CloudFront の同一 origin          |
 | `VITE_VAPID_PUBLIC_KEY`     | Push API と対になる VAPID 公開鍵                              |
 
@@ -25,8 +26,9 @@ Google OAuth クライアントのリダイレクト URI には
 Lambda@Edge が Cognito ID token を検証した後、非公開 StatusBucket の
 `user_status.json` を OAC 経由で返します。購読の POST / DELETE は同一 origin の
 `/subscriptions` behavior から Push Lambda に転送します。ブラウザーと API は同一 origin
-なので CORS は使用しません。アプリはログイン時に取得し、表示中の定期更新と画面復帰時にも
-再取得します。
+なので CORS は使用しません。画面の同期ボタンは認証済み `POST /keeper` で Keeper を実行し、
+完了後に `/status` から S3 の最新データを取得します。ログイン後、表示中の定期更新、
+画面復帰時の更新、および再試行では引き続き `/status` のみを取得します。
 
 利用状況データは Keeper の `UserStatusSnapshot` 形式を使用します。利用者データに
 `cardNo` または `cardNumber` を含めるとバーコードを表示できます。貸出データに

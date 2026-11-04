@@ -28,6 +28,12 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
           allow: 'POST, DELETE',
         });
       }
+    } else if (request.uri === '/keeper') {
+      if (request.method !== 'POST') {
+        return errorResponse(405, 'Method not allowed.', {
+          allow: 'POST',
+        });
+      }
     } else {
       return errorResponse(404, 'Not found.');
     }
@@ -43,7 +49,8 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         ...configuration,
         issuer,
         loadJwks,
-        requireEmail: request.uri === '/subscriptions',
+        requireEmail:
+          request.uri === '/subscriptions' || request.uri === '/keeper',
       });
     } catch (error) {
       if (error instanceof InvalidTokenError) {
@@ -55,7 +62,7 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
 
     removeHeader(request.headers, 'authorization');
     removeHeader(request.headers, 'x-cognito-id-token');
-    if (request.uri === '/subscriptions') {
+    if (request.uri === '/subscriptions' || request.uri === '/keeper') {
       request.headers['x-authenticated-email'] = [
         { key: 'X-Authenticated-Email', value: claims.email },
       ];

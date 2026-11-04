@@ -101,6 +101,27 @@ test('allows status access without a verified email but requires it for subscrip
   assert.equal(subscriptionsResult.status, '401');
 });
 
+test('requires a verified email claim to invoke Keeper', async () => {
+  const handler = createHandler();
+  const valid = await handler(
+    cloudFrontEvent('/keeper', createToken(), 'POST'),
+  );
+  const missingEmail = await handler(
+    cloudFrontEvent('/keeper', createToken({ email: undefined }), 'POST'),
+  );
+  const unsupportedMethod = await handler(
+    cloudFrontEvent('/keeper', createToken(), 'DELETE'),
+  );
+
+  assert.equal(
+    valid.headers['x-authenticated-email'][0].value,
+    'member@example.com',
+  );
+  assert.equal(missingEmail.status, '401');
+  assert.equal(unsupportedMethod.status, '405');
+  assert.equal(unsupportedMethod.headers.allow[0].value, 'POST');
+});
+
 test('requires a verified email claim for subscriptions', async () => {
   const result = await createHandler()(
     cloudFrontEvent(
@@ -175,13 +196,39 @@ test('forwards only the verified email claim to the Push Lambda origin', async (
   );
 });
 
+test('forwards only the verified email claim to the Keeper Lambda origin', async () => {
+  const request = cloudFrontEvent('/keeper', createToken(), 'POST').Records[0]
+    .cf.request;
+  request.headers['x-cognito-id-token'] = [
+    { key: 'X-Cognito-Id-Token', value: 'forged-token' },
+  ];
+  request.headers['x-authenticated-email'] = [
+    { key: 'X-Authenticated-Email', value: 'forged@example.com' },
+  ];
+
+  const result = await createHandler()({
+    Records: [{ cf: { request } }],
+  });
+
+  assert.equal(result.headers.authorization, undefined);
+  assert.equal(result.headers['x-cognito-id-token'], undefined);
+  assert.equal(
+    result.headers['x-authenticated-email'][0].value,
+    'member@example.com',
+  );
+});
+
 test('rejects unsupported routes and methods', async () => {
   const handler = createHandler();
   const unknownPath = await handler(cloudFrontEvent('/unknown', createToken()));
   const wrongMethod = await handler(
     cloudFrontEvent('/status', createToken(), 'POST'),
   );
+  const keeperWrongMethod = await handler(
+    cloudFrontEvent('/keeper', createToken(), 'GET'),
+  );
 
   assert.equal(unknownPath.status, '404');
   assert.equal(wrongMethod.status, '405');
+  assert.equal(keeperWrongMethod.status, '405');
 });
