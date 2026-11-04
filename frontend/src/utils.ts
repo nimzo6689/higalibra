@@ -35,15 +35,6 @@ export function formatDateTime(value: string): string {
   }).format(date);
 }
 
-export function formatToday(): string {
-  return new Intl.DateTimeFormat('ja-JP', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    weekday: 'short',
-  }).format(new Date());
-}
-
 export function coverClass(title: string): string {
   const styles = ['cover-green', 'cover-peach', 'cover-lavender', 'cover-blue'];
   return styles[title.length % styles.length];
@@ -64,4 +55,3 @@ export function errorMessage(error: unknown): string {
     ? error.message
     : '予期しないエラーが発生しました。';
 }
-

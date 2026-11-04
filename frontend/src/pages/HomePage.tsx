@@ -4,7 +4,6 @@ import {
   BellOff,
   BookMarked,
   BookOpen,
-  CalendarDays,
   Check,
   CircleAlert,
   Clock3,
@@ -15,7 +14,7 @@ import {
 } from 'lucide-react';
 import { EmptyMessage } from '../components';
 import type { BorrowedBook, LibraryUser, ReservedBook, Route } from '../types';
-import { formatDate, formatDateTime, formatToday } from '../utils';
+import { formatDate, formatDateTime } from '../utils';
 
 export function HomePage({
   users,
@@ -58,11 +57,6 @@ export function HomePage({
             図書館利用状況です。
           </p>
         </div>
-        <button className="date-chip" onClick={() => onNavigate('/borrowed')}>
-          <CalendarDays size={16} />
-          {formatToday()}
-          <ArrowRight size={15} />
-        </button>
       </section>
 
       <section className="summary-grid" aria-label="利用状況サマリー">
