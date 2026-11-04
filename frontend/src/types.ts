@@ -27,3 +27,5 @@ export interface UserStatusSnapshot {
   lastUpdated: string;
   users: LibraryUser[];
 }
+
+export type Route = '/' | '/borrowed' | '/reservations' | '/barcode';
