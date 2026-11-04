@@ -4,6 +4,14 @@ import { EmptyPanel, PageIntro, UserBadge, UserFilter } from '../components';
 import type { BorrowedBook, LibraryUser, Route } from '../types';
 import { coverClass, daysUntil, formatDate, safeCoverUrl } from '../utils';
 
+function daysUntilSortableReturnDate(book: BorrowedBook): number {
+  const renewalDays =
+    book.status === '再貸出' || book.status === 'まだ更新できません'
+      ? 14
+      : 0;
+  return daysUntil(book.returnDate) + renewalDays;
+}
+
 export function BorrowedPage({
   users,
   onNavigate,
@@ -16,7 +24,9 @@ export function BorrowedPage({
     .filter((user) => selectedUser === 'all' || user.cardNo === selectedUser)
     .flatMap((user) => user.borrowedBooks.map((book) => ({ user, book })))
     .sort(
-      (a, b) => daysUntil(a.book.returnDate) - daysUntil(b.book.returnDate),
+      (a, b) =>
+        daysUntilSortableReturnDate(a.book) -
+        daysUntilSortableReturnDate(b.book),
     );
 
   return (
