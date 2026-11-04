@@ -14,11 +14,13 @@ export class Scraper implements LibraryScraper {
   private readonly session: LibrarySession;
   private readonly cardNo: string;
   private readonly baseUrl: string;
+  private readonly imageUrlCache: ScraperOptions['imageUrlCache'];
 
   constructor(options: ScraperOptions) {
     this.session = new LibrarySession(options);
     this.cardNo = options.cardNo;
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    this.imageUrlCache = options.imageUrlCache;
   }
 
   async getUserStatus() {
@@ -28,10 +30,14 @@ export class Scraper implements LibraryScraper {
     const detailUrls = parseBookDetailUrls(html, statusPageUrl);
     const [borrowedImageUrls, reservedImageUrls] = await Promise.all([
       Promise.all(
-        detailUrls.borrowedBooks.map((url) => this.getBookImageUrl(url)),
+        status.borrowedBooks.map((book, index) =>
+          this.getBookImageUrl(book.title, detailUrls.borrowedBooks[index]),
+        ),
       ),
       Promise.all(
-        detailUrls.reservedBooks.map((url) => this.getBookImageUrl(url)),
+        status.reservedBooks.map((book, index) =>
+          this.getBookImageUrl(book.title, detailUrls.reservedBooks[index]),
+        ),
       ),
     ]);
 
@@ -48,8 +54,14 @@ export class Scraper implements LibraryScraper {
   }
 
   private async getBookImageUrl(
+    title: string,
     detailPageUrl: string | null,
   ): Promise<string | null> {
+    const cachedImageUrl = await this.imageUrlCache?.get(title);
+    if (cachedImageUrl !== null && cachedImageUrl !== undefined) {
+      return cachedImageUrl;
+    }
+
     if (!detailPageUrl) {
       return null;
     }
@@ -61,7 +73,11 @@ export class Scraper implements LibraryScraper {
     }
 
     const affiliateHtml = await this.session.getHtml(affiliatePageUrl);
-    return parseAffiliateImageUrl(affiliateHtml, affiliatePageUrl);
+    const imageUrl = parseAffiliateImageUrl(affiliateHtml, affiliatePageUrl);
+    if (imageUrl) {
+      await this.imageUrlCache?.set(title, imageUrl);
+    }
+    return imageUrl;
   }
 
   async getNewBooks() {

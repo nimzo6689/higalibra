@@ -4,6 +4,7 @@ export type {
   BookGenre,
   BorrowedBook,
   BorrowedBookStatus,
+  ImageUrlCache,
   LibraryScraper,
   NewBook,
   ReservedBook,

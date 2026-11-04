@@ -50,6 +50,23 @@ pnpm repl
 貸出延長や予約も同様に実行できますが、図書館アカウントに変更が加えられます。
 `getUserStatus()` は貸出・予約中の書籍の `imageUrl` も取得します。
 画像を取得できない書籍の `imageUrl` は `null` です。
+画像 URL の取得時に外部 KVS などのキャッシュを使う場合は、タイトルをキー、
+画像 URL を値として読み書きする `imageUrlCache` を渡せます。
+
+```ts
+const scraper = createScraper({
+  baseUrl: 'https://xxxxx/opw/OPW',
+  cardNo: '利用者カード番号',
+  password: 'パスワード',
+  imageUrlCache: {
+    get: (title) => cache.get(title),
+    set: (title, imageUrl) => cache.set(title, imageUrl),
+  },
+});
+```
+
+キャッシュに URL があれば図書館サイトへの画像 URL 取得通信を省略します。
+キャッシュミス時は従来どおり画像 URL を取得し、取得できた場合にキャッシュへ保存します。
 
 ## パッケージコマンド
 

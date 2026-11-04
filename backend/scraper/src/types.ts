@@ -4,6 +4,12 @@ export interface ScraperOptions {
   baseUrl: string;
   cardNo: string;
   password: string;
+  imageUrlCache?: ImageUrlCache;
+}
+
+export interface ImageUrlCache {
+  get(title: string): Promise<string | null>;
+  set(title: string, imageUrl: string): Promise<void>;
 }
 
 export type BorrowedBookStatus =

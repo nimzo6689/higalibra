@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createScraper } from '../dist/index.js';
 
-test('getUserStatus resolves cover images through book details and affiliate frames', async () => {
+test('getUserStatus caches cover image URLs by book title', async () => {
   const requests = [];
+  const cache = new Map();
+  const cacheGets = [];
+  const cacheSets = [];
   const originalFetch = globalThis.fetch;
   const statusHtml = `
     <meta charset="utf-8">
@@ -55,6 +58,16 @@ test('getUserStatus resolves cover images through book details and affiliate fra
       baseUrl: 'https://library.example/OPW',
       cardNo: 'card',
       password: 'password',
+      imageUrlCache: {
+        async get(title) {
+          cacheGets.push(title);
+          return cache.get(title) ?? null;
+        },
+        async set(title, imageUrl) {
+          cacheSets.push([title, imageUrl]);
+          cache.set(title, imageUrl);
+        },
+      },
     });
 
     const status = await scraper.getUserStatus();
@@ -72,6 +85,28 @@ test('getUserStatus resolves cover images through book details and affiliate fra
         .find(({ url }) => url.hostname === 'affiliate.example')
         .init.headers.has('cookie'),
       false,
+    );
+    assert.deepEqual(cacheSets, [
+      ['借りた本', 'https://affiliate.example/covers/borrowed.jpg'],
+      ['予約した本', 'https://affiliate.example/covers/reserved.jpg'],
+    ]);
+
+    await scraper.getUserStatus();
+
+    assert.deepEqual(cacheGets, [
+      '借りた本',
+      '予約した本',
+      '借りた本',
+      '予約した本',
+    ]);
+    assert.equal(
+      requests.filter(({ url }) => url.hostname === 'affiliate.example').length,
+      2,
+    );
+    assert.equal(
+      requests.filter(({ url }) => url.pathname.endsWith('/books/borrowed'))
+        .length,
+      1,
     );
   } finally {
     globalThis.fetch = originalFetch;
