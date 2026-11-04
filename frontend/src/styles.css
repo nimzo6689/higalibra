@@ -1194,8 +1194,15 @@ p {
   width: 47px;
   height: 58px;
   flex: 0 0 auto;
+  overflow: hidden;
   place-items: center;
   border-radius: 8px;
+}
+
+.reservation-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .reservation-main {

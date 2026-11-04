@@ -1,18 +1,8 @@
 import { useState } from 'react';
-import {
-  ArrowDownWideNarrow,
-  Bell,
-  BookMarked,
-  Check,
-} from 'lucide-react';
-import {
-  EmptyPanel,
-  PageIntro,
-  UserBadge,
-  UserFilter,
-} from '../components';
+import { ArrowDownWideNarrow, Bell, BookMarked, Check } from 'lucide-react';
+import { EmptyPanel, PageIntro, UserBadge, UserFilter } from '../components';
 import type { LibraryUser, ReservedBook } from '../types';
-import { formatDate } from '../utils';
+import { formatDate, safeCoverUrl } from '../utils';
 
 export function ReservationsPage({ users }: { users: LibraryUser[] }) {
   const [selectedUser, setSelectedUser] = useState('all');
@@ -87,12 +77,25 @@ export function ReservationCard({
   book: ReservedBook;
 }) {
   const ready = book.holdExpiresOn !== null;
+  const imageUrl = safeCoverUrl(book.imageUrl);
+  const [failedImageUrl, setFailedImageUrl] = useState<string>();
   return (
     <article className={`reservation-card ${ready ? 'is-ready' : ''}`}>
       <div
         className={`reservation-cover ${ready ? 'cover-peach' : 'cover-lavender'}`}
       >
-        {ready ? <Bell size={21} /> : <BookMarked size={21} />}
+        {imageUrl && imageUrl !== failedImageUrl ? (
+          <img
+            src={imageUrl}
+            alt=""
+            loading="lazy"
+            onError={() => setFailedImageUrl(imageUrl)}
+          />
+        ) : ready ? (
+          <Bell size={21} />
+        ) : (
+          <BookMarked size={21} />
+        )}
       </div>
       <div className="reservation-main">
         <div className="card-user-row">
