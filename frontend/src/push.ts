@@ -1,8 +1,13 @@
+import { fetchWithTokenRefresh } from './auth';
+import type { AuthConfiguration, AuthSession } from './auth';
+
 const DEVICE_ID_STORAGE_KEY = 'mesh.push-device-id';
 
 export async function enablePush(
   apiUrl: string,
   idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
   vapidPublicKey: string,
 ): Promise<void> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
@@ -15,7 +20,7 @@ export async function enablePush(
       userVisibleOnly: true,
       applicationServerKey: decodeVapidKey(vapidPublicKey),
     }));
-  const response = await fetch(new URL('/subscriptions', apiUrl), {
+  const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'POST',
     headers: {
       authorization: `Bearer ${idToken}`,
@@ -25,7 +30,7 @@ export async function enablePush(
       deviceId: getDeviceId(),
       subscription: subscription.toJSON(),
     }),
-  });
+  }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の登録に失敗しました (HTTP ${response.status})。`);
   }
@@ -34,19 +39,21 @@ export async function enablePush(
 export async function disablePush(
   apiUrl: string,
   idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return;
 
-  const response = await fetch(new URL('/subscriptions', apiUrl), {
+  const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'DELETE',
     headers: {
       authorization: `Bearer ${idToken}`,
       'content-type': 'application/json',
     },
     body: JSON.stringify({ deviceId: getDeviceId() }),
-  });
+  }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の解除に失敗しました (HTTP ${response.status})。`);
   }

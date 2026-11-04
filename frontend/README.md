@@ -29,6 +29,8 @@ Lambda@Edge が Cognito ID token を検証した後、非公開 StatusBucket の
 なので CORS は使用しません。画面の同期ボタンは認証済み `POST /keeper` で Keeper を実行し、
 完了後に `/status` から S3 の最新データを取得します。ログイン後、表示中の定期更新、
 画面復帰時の更新、および再試行では引き続き `/status` のみを取得します。
+認証付き API が HTTP 401 を返した場合は、保存済み refresh token で ID token を更新し、
+失敗したリクエストを一度だけ再試行します。
 
 利用状況データは Keeper の `UserStatusSnapshot` 形式を使用します。利用者データに
 `cardNo` または `cardNumber` を含めるとバーコードを表示できます。貸出データに

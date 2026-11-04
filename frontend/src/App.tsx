@@ -91,7 +91,13 @@ export default function App() {
     statusRequest.current = controller;
     setIsLoading(true);
     setDataError('');
-    fetchUserStatus(statusUrl, session.idToken, controller.signal)
+    fetchUserStatus(
+      statusUrl,
+      session.idToken,
+      authConfiguration,
+      setSession,
+      controller.signal,
+    )
       .then((nextSnapshot) => {
         if (!controller.signal.aborted) setSnapshot(nextSnapshot);
       })
@@ -121,7 +127,12 @@ export default function App() {
     setSyncError('');
     setDataError('');
     try {
-      await executeKeeper(apiUrl, session.idToken);
+      await executeKeeper(
+        apiUrl,
+        session.idToken,
+        authConfiguration,
+        setSession,
+      );
     } catch (error) {
       setSyncError(errorMessage(error));
     } finally {
@@ -214,7 +225,7 @@ export default function App() {
     setPushBusy(true);
     try {
       if (pushEnabled) {
-        await disablePush(apiUrl, session.idToken);
+        await disablePush(apiUrl, session.idToken, authConfiguration, setSession);
         setPushEnabled(false);
         setPushMessage('この端末の通知を解除しました。');
       } else {
@@ -225,7 +236,13 @@ export default function App() {
         if (permission !== 'granted') {
           throw new Error('ブラウザーの通知を許可してください。');
         }
-        await enablePush(apiUrl, session.idToken, vapidPublicKey);
+        await enablePush(
+          apiUrl,
+          session.idToken,
+          authConfiguration,
+          setSession,
+          vapidPublicKey,
+        );
         setPushEnabled(true);
         setPushMessage('この端末で通知を受け取れます。');
       }

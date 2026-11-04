@@ -4,17 +4,21 @@ import type {
   ReservedBook,
   UserStatusSnapshot,
 } from './types';
+import { fetchWithTokenRefresh } from './auth';
+import type { AuthConfiguration, AuthSession } from './auth';
 
 export async function fetchUserStatus(
   url: string,
   idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
   signal?: AbortSignal,
 ): Promise<UserStatusSnapshot> {
-  const response = await fetch(url, {
+  const response = await fetchWithTokenRefresh(url, {
     headers: { authorization: `Bearer ${idToken}` },
     cache: 'no-store',
     signal,
-  });
+  }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(
       `利用状況を取得できませんでした (HTTP ${response.status})。`,
@@ -38,12 +42,14 @@ export async function fetchUserStatus(
 export async function executeKeeper(
   apiUrl: string,
   idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
-  const response = await fetch(new URL('/keeper', apiUrl), {
+  const response = await fetchWithTokenRefresh(new URL('/keeper', apiUrl), {
     method: 'POST',
     headers: { authorization: `Bearer ${idToken}` },
     cache: 'no-store',
-  });
+  }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`Keeper の実行に失敗しました (HTTP ${response.status})。`);
   }

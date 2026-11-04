@@ -2,6 +2,7 @@ const TOKEN_STORAGE_KEY = 'mesh.auth-session';
 const STATE_STORAGE_KEY = 'mesh.oauth-state';
 const VERIFIER_STORAGE_KEY = 'mesh.pkce-verifier';
 const REFRESH_TOKEN_VALIDITY_MS = 90 * 24 * 60 * 60 * 1000;
+let refreshInFlight: Promise<AuthSession> | null = null;
 
 export interface AuthConfiguration {
   domain: string;
@@ -115,6 +116,20 @@ export async function refreshSession(
   configuration: AuthConfiguration,
   session: AuthSession,
 ): Promise<AuthSession> {
+  if (!refreshInFlight) {
+    refreshInFlight = requestRefreshSession(configuration, session).finally(
+      () => {
+        refreshInFlight = null;
+      },
+    );
+  }
+  return refreshInFlight;
+}
+
+async function requestRefreshSession(
+  configuration: AuthConfiguration,
+  session: AuthSession,
+): Promise<AuthSession> {
   const response = await fetch(new URL('/oauth2/token', configuration.domain), {
     method: 'POST',
     headers: { 'content-type': 'application/x-www-form-urlencoded' },
@@ -146,6 +161,37 @@ export async function refreshSession(
   };
   localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify(refreshedSession));
   return refreshedSession;
+}
+
+export async function fetchWithTokenRefresh(
+  input: RequestInfo | URL,
+  init: RequestInit,
+  configuration: AuthConfiguration | null,
+  idToken: string,
+  onSessionRefresh: (session: AuthSession) => void,
+): Promise<Response> {
+  const send = (token: string) => {
+    const headers = new Headers(init.headers);
+    headers.set('authorization', `Bearer ${token}`);
+    return fetch(input, { ...init, headers });
+  };
+
+  const response = await send(idToken);
+  if (response.status !== 401 || init.signal?.aborted || !configuration) {
+    return response;
+  }
+
+  const storedSession = readSession();
+  if (!storedSession) {
+    throw new Error('ログイン状態が見つかりません。もう一度ログインしてください。');
+  }
+  const latestSession =
+    storedSession.idToken !== idToken &&
+    storedSession.expiresAt > Date.now()
+      ? storedSession
+      : await refreshSession(configuration, storedSession);
+  onSessionRefresh(latestSession);
+  return send(latestSession.idToken);
 }
 
 export function readSession(): AuthSession | null {
