@@ -82,9 +82,12 @@ button:disabled {
   width: 42px;
   height: 42px;
   place-items: center;
-  border-radius: 14px;
-  background: var(--green);
-  color: #f5f6ea;
+}
+
+.brand-mark img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brand-text {
@@ -1844,10 +1847,6 @@ p {
     width: 35px;
     height: 35px;
     border-radius: 12px;
-  }
-
-  .mobile-brand .brand-mark svg {
-    width: 18px;
   }
 
   .mobile-brand .brand-text strong {
