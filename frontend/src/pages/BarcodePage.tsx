@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import JsBarcode from 'jsbarcode';
 import {
   Bell,
+  ChevronDown,
   CircleAlert,
   LibraryBig,
   ScanBarcode,
@@ -72,22 +73,28 @@ export function BarcodePage({
           利用券バーコード
         </h2>
         <div className="barcode-panel-content">
-          <div className="member-tabs" role="tablist" aria-label="利用者を選択">
-            {users.map((user, index) => (
-              <button
-                key={user.cardNo}
-                className={`member-tab ${selectedUser.cardNo === user.cardNo ? 'selected' : ''}`}
-                role="tab"
-                aria-selected={selectedUser.cardNo === user.cardNo}
-                onClick={() => setSelectedCardNo(user.cardNo)}
-              >
-                <span className={`avatar avatar-${index % 4}`}>
-                  {user.name.slice(0, 1)}
-                </span>
-                {user.name}
-              </button>
-            ))}
-          </div>
+          <details className="member-selector" open>
+            <summary>
+              利用者を選択
+              <ChevronDown size={16} aria-hidden="true" />
+            </summary>
+            <div className="member-tabs" role="tablist" aria-label="利用者を選択">
+              {users.map((user, index) => (
+                <button
+                  key={user.cardNo}
+                  className={`member-tab ${selectedUser.cardNo === user.cardNo ? 'selected' : ''}`}
+                  role="tab"
+                  aria-selected={selectedUser.cardNo === user.cardNo}
+                  onClick={() => setSelectedCardNo(user.cardNo)}
+                >
+                  <span className={`avatar avatar-${index % 4}`}>
+                    {user.name.slice(0, 1)}
+                  </span>
+                  {user.name}
+                </button>
+              ))}
+            </div>
+          </details>
           <section className="library-card">
             <h3 className="library-card-heading">東村山市立図書館</h3>
             <div className="barcode-wrap">

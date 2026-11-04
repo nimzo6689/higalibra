@@ -1380,10 +1380,46 @@ p {
   padding: 12px 20px 18px;
 }
 
+.member-selector {
+  margin-bottom: 12px;
+}
+
+.member-selector > summary {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  color: #59685d;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  list-style: none;
+}
+
+.member-selector > summary::-webkit-details-marker {
+  display: none;
+}
+
+.member-selector > summary svg {
+  transition: transform 0.2s ease;
+}
+
+.member-selector[open] > summary svg {
+  transform: rotate(180deg);
+}
+
+.member-selector > summary:focus-visible {
+  outline: 2px solid #579e75;
+  outline-offset: 2px;
+}
+
 .member-tabs {
   display: flex;
   gap: 5px;
-  margin-bottom: 12px;
+  margin-top: 10px;
   overflow-x: auto;
 }
 
