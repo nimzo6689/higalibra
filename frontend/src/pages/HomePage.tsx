@@ -8,13 +8,12 @@ import {
   CircleAlert,
   Clock3,
   LoaderCircle,
-  RefreshCw,
   ScanBarcode,
   Sparkles,
 } from 'lucide-react';
 import { EmptyMessage } from '../components';
 import type { BorrowedBook, LibraryUser, ReservedBook, Route } from '../types';
-import { formatDate, formatDateTime } from '../utils';
+import { formatDate } from '../utils';
 
 export function HomePage({
   users,
@@ -22,7 +21,6 @@ export function HomePage({
   reservedCount,
   dueBooks,
   readyBooks,
-  lastUpdated,
   pushEnabled,
   pushBusy,
   pushError,
