@@ -12,6 +12,7 @@ export interface BorrowedBook {
 export interface ReservedBook {
   rank: string;
   title: string;
+  imageUrl?: string;
   reservedOn: string;
   holdExpiresOn: string | null;
 }

@@ -27,6 +27,7 @@ export function parseUserStatus(html: Buffer): UserStatus {
           'status',
         ),
         title: cellText(cells.eq(2)),
+        imageUrl: null,
         genre: parseEnum<BookGenre>(
           cellText(cells.eq(3)),
           [
@@ -55,12 +56,54 @@ export function parseUserStatus(html: Buffer): UserStatus {
       return {
         ...parseReservationRank(cellText(cells.eq(2))),
         title: cellText(cells.eq(3)),
+        imageUrl: null,
         reservedOn: parseLibraryDate(cellText(cells.eq(5)), 'reservedOn'),
         expireOn: parseOptionalLibraryDate(cellText(cells.eq(7)), 'expireOn'),
       };
     });
 
   return { borrowedBooks, reservedBooks };
+}
+
+export function parseBookDetailUrls(
+  html: Buffer,
+  statusPageUrl: string,
+): { borrowedBooks: (string | null)[]; reservedBooks: (string | null)[] } {
+  const $ = loadBuffer(html);
+  const resolveTitleLink = (cell: ReturnType<typeof $>) => {
+    const href = cell.find('a').first().attr('href');
+    return href ? new URL(href, statusPageUrl).href : null;
+  };
+
+  const borrowedBooks = $(
+    '#ContentLend table.el-table-bordered tr:not(:first-child)',
+  )
+    .toArray()
+    .filter((_, index) => index % 2 === 0)
+    .map((row) => resolveTitleLink($(row).children('td').eq(2)));
+  const reservedBooks = $(
+    '#ContentRsv table.el-table-bordered tr:not(:first-child)',
+  )
+    .toArray()
+    .map((row) => resolveTitleLink($(row).children('td').eq(3)));
+
+  return { borrowedBooks, reservedBooks };
+}
+
+export function parseAffiliateFrameUrl(
+  html: Buffer,
+  detailPageUrl: string,
+): string | null {
+  const src = loadBuffer(html)('iframe[name="AFFILIATE"]').attr('src');
+  return src ? new URL(src, detailPageUrl).href : null;
+}
+
+export function parseAffiliateImageUrl(
+  html: Buffer,
+  affiliatePageUrl: string,
+): string | null {
+  const src = loadBuffer(html)('div.panel-body img').first().attr('src');
+  return src ? new URL(src, affiliatePageUrl).href : null;
 }
 
 export function parseNewBooks(html: Buffer): NewBook[] {

@@ -17,6 +17,7 @@ export type AvailabilityStatus = '○ 在架あり' | '× 在架なし';
 export interface BorrowedBook {
   status: BorrowedBookStatus;
   title: string;
+  imageUrl: string | null;
   genre: BookGenre;
   barcode: string;
   borrowedOn: Temporal.PlainDate;
@@ -27,6 +28,7 @@ export interface ReservedBook {
   userRank: number;
   totalReservations: number;
   title: string;
+  imageUrl: string | null;
   reservedOn: Temporal.PlainDate;
   expireOn: Temporal.PlainDate | null;
 }

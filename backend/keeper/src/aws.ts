@@ -186,6 +186,9 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
         typeof book.barcode !== 'string' ||
         typeof book.status !== 'string' ||
         typeof book.title !== 'string' ||
+        (book.imageUrl !== undefined &&
+          book.imageUrl !== null &&
+          typeof book.imageUrl !== 'string') ||
         typeof book.author !== 'string' ||
         typeof book.genre !== 'string' ||
         typeof book.loanDate !== 'string' ||
@@ -197,6 +200,7 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
         barcode: book.barcode,
         status: book.status,
         title: book.title,
+        imageUrl: typeof book.imageUrl === 'string' ? book.imageUrl : null,
         author: book.author,
         genre: book.genre,
         loanDate: book.loanDate,
@@ -208,6 +212,9 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
         !isRecord(book) ||
         typeof book.rank !== 'string' ||
         typeof book.title !== 'string' ||
+        (book.imageUrl !== undefined &&
+          book.imageUrl !== null &&
+          typeof book.imageUrl !== 'string') ||
         typeof book.reservedOn !== 'string' ||
         (book.holdExpiresOn !== null && typeof book.holdExpiresOn !== 'string')
       ) {
@@ -216,6 +223,7 @@ function parseSnapshot(value: unknown): UserStatusSnapshot {
       return {
         rank: book.rank,
         title: book.title,
+        imageUrl: typeof book.imageUrl === 'string' ? book.imageUrl : null,
         reservedOn: book.reservedOn,
         holdExpiresOn: book.holdExpiresOn,
       };

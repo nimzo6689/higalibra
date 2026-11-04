@@ -1,4 +1,5 @@
 import { createScraper } from './dist/index.js';
+import { Temporal } from '@js-temporal/polyfill';
 
 const baseUrl = process.env.HIGALIBRA_BASE_URL;
 if (!baseUrl) {

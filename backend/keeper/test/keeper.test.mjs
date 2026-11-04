@@ -178,6 +178,39 @@ test('notifies only when a reservation first becomes held', async () => {
   assert.equal(saved.length, 1);
 });
 
+test('preserves image URLs in the stored status snapshot', async () => {
+  const status = {
+    borrowedBooks: [
+      {
+        ...borrowedBook({ barcode: 'loan', returnOn: '2026-11-12' }),
+        imageUrl: 'https://covers.example/loan.jpg',
+      },
+    ],
+    reservedBooks: [
+      {
+        ...reservedBook({
+          title: '予約本',
+          reservedOn: '2026-10-10',
+          expireOn: null,
+        }),
+        imageUrl: 'https://covers.example/reservation.jpg',
+      },
+    ],
+  };
+  const { deps, saved } = dependencies({ status });
+
+  await runKeeper(secret, deps);
+
+  assert.equal(
+    saved[0].users[0].borrowedBooks[0].imageUrl,
+    'https://covers.example/loan.jpg',
+  );
+  assert.equal(
+    saved[0].users[0].reservedBooks[0].imageUrl,
+    'https://covers.example/reservation.jpg',
+  );
+});
+
 test('saves the latest snapshot even when push delivery fails', async () => {
   const status = {
     borrowedBooks: [],

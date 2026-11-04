@@ -143,6 +143,7 @@ function toStoredBorrowedBook(book: BorrowedBook): StoredBorrowedBook {
     barcode: book.barcode,
     status: book.status,
     title: book.title,
+    imageUrl: book.imageUrl,
     author: '',
     genre: book.genre,
     loanDate: book.borrowedOn.toString(),
@@ -154,6 +155,7 @@ function toStoredReservedBook(book: ReservedBook): StoredReservedBook {
   return {
     rank: `${book.userRank}/${book.totalReservations}`,
     title: book.title,
+    imageUrl: book.imageUrl,
     reservedOn: book.reservedOn.toString(),
     holdExpiresOn: book.expireOn?.toString() ?? null,
   };

@@ -106,7 +106,8 @@ function parseBorrowedBook(
     title: value.title,
     author: optionalString(value.author),
     genre: optionalString(value.genre),
-    coverImageUrl: optionalString(value.coverImageUrl),
+    coverImageUrl:
+      optionalString(value.imageUrl) ?? optionalString(value.coverImageUrl),
     loanDate: value.loanDate,
     returnDate: value.returnDate,
   };
@@ -131,6 +132,7 @@ function parseReservedBook(
   return {
     rank: value.rank,
     title: value.title,
+    imageUrl: optionalString(value.imageUrl),
     reservedOn: value.reservedOn,
     holdExpiresOn: value.holdExpiresOn,
   };

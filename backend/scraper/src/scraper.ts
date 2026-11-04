@@ -1,6 +1,9 @@
 import {
   extractToken,
   extractTokens,
+  parseAffiliateFrameUrl,
+  parseAffiliateImageUrl,
+  parseBookDetailUrls,
   parseNewBooks,
   parseUserStatus,
 } from './parsers.js';
@@ -10,14 +13,55 @@ import type { LibraryScraper, ScraperOptions } from './types.js';
 export class Scraper implements LibraryScraper {
   private readonly session: LibrarySession;
   private readonly cardNo: string;
+  private readonly baseUrl: string;
 
   constructor(options: ScraperOptions) {
     this.session = new LibrarySession(options);
     this.cardNo = options.cardNo;
+    this.baseUrl = options.baseUrl.replace(/\/+$/, '');
   }
 
   async getUserStatus() {
-    return parseUserStatus(await this.session.getHtml('/OPWUSERINFO.CSP'));
+    const statusPageUrl = new URL('OPWUSERINFO.CSP', `${this.baseUrl}/`).href;
+    const html = await this.session.getHtml(statusPageUrl);
+    const status = parseUserStatus(html);
+    const detailUrls = parseBookDetailUrls(html, statusPageUrl);
+    const [borrowedImageUrls, reservedImageUrls] = await Promise.all([
+      Promise.all(
+        detailUrls.borrowedBooks.map((url) => this.getBookImageUrl(url)),
+      ),
+      Promise.all(
+        detailUrls.reservedBooks.map((url) => this.getBookImageUrl(url)),
+      ),
+    ]);
+
+    return {
+      borrowedBooks: status.borrowedBooks.map((book, index) => ({
+        ...book,
+        imageUrl: borrowedImageUrls[index],
+      })),
+      reservedBooks: status.reservedBooks.map((book, index) => ({
+        ...book,
+        imageUrl: reservedImageUrls[index],
+      })),
+    };
+  }
+
+  private async getBookImageUrl(
+    detailPageUrl: string | null,
+  ): Promise<string | null> {
+    if (!detailPageUrl) {
+      return null;
+    }
+
+    const detailHtml = await this.session.getHtml(detailPageUrl);
+    const affiliatePageUrl = parseAffiliateFrameUrl(detailHtml, detailPageUrl);
+    if (!affiliatePageUrl) {
+      return null;
+    }
+
+    const affiliateHtml = await this.session.getHtml(affiliatePageUrl);
+    return parseAffiliateImageUrl(affiliateHtml, affiliatePageUrl);
   }
 
   async getNewBooks() {

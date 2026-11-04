@@ -2,6 +2,7 @@ import type { ScraperOptions } from './types.js';
 
 export class LibrarySession {
   private readonly baseUrl: string;
+  private readonly baseOrigin: string;
   private readonly cardNo: string;
   private readonly password: string;
   private readonly cookies = new Map<string, string>();
@@ -9,6 +10,7 @@ export class LibrarySession {
 
   constructor(options: ScraperOptions) {
     this.baseUrl = options.baseUrl.replace(/\/+$/, '');
+    this.baseOrigin = new URL(`${this.baseUrl}/`).origin;
     this.cardNo = options.cardNo;
     this.password = options.password;
   }
@@ -108,12 +110,21 @@ export class LibrarySession {
     init: RequestInit = {},
     options: { dumpRequest?: boolean; updateCookies?: boolean } = {},
   ): Promise<Response> {
-    const url = new URL(path.replace(/^\/+/, ''), `${this.baseUrl}/`);
+    const url = /^[a-z][a-z\d+.-]*:/i.test(path)
+      ? new URL(path)
+      : new URL(path.replace(/^\/+/, ''), `${this.baseUrl}/`);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      throw new Error(`Unsupported library request URL: ${url.href}`);
+    }
     const headers = new Headers(init.headers);
-    headers.set(
-      'Cookie',
-      Array.from(this.cookies, ([key, value]) => `${key}=${value}`).join('; '),
-    );
+    if (url.origin === this.baseOrigin) {
+      headers.set(
+        'Cookie',
+        Array.from(this.cookies, ([key, value]) => `${key}=${value}`).join(
+          '; ',
+        ),
+      );
+    }
 
     if (options.dumpRequest) {
       const dumpHeaders = new Headers(headers);
@@ -139,7 +150,7 @@ export class LibrarySession {
     }
 
     const response = await fetch(url, { ...init, headers, redirect: 'manual' });
-    if (options.updateCookies !== false) {
+    if (options.updateCookies !== false && url.origin === this.baseOrigin) {
       for (const setCookie of response.headers.getSetCookie()) {
         const [pair] = setCookie.split(';');
         const separator = pair.indexOf('=');

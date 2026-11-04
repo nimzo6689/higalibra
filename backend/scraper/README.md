@@ -48,6 +48,8 @@ pnpm repl
 を実行してから、`await scraper.getUserStatus()` や `await scraper.getNewBooks()` を実行できます。
 最初のリクエスト時にログインが行われます。
 貸出延長や予約も同様に実行できますが、図書館アカウントに変更が加えられます。
+`getUserStatus()` は貸出・予約中の書籍の `imageUrl` も取得します。
+画像を取得できない書籍の `imageUrl` は `null` です。
 
 ## パッケージコマンド
 

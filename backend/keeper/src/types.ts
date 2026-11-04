@@ -23,6 +23,7 @@ export interface StoredBorrowedBook {
   barcode: string;
   status: string;
   title: string;
+  imageUrl: string | null;
   author: string;
   genre: string;
   loanDate: string;
@@ -32,6 +33,7 @@ export interface StoredBorrowedBook {
 export interface StoredReservedBook {
   rank: string;
   title: string;
+  imageUrl: string | null;
   reservedOn: string;
   holdExpiresOn: string | null;
 }
