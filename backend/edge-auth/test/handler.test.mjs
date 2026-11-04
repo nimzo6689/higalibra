@@ -5,7 +5,7 @@ import { createEdgeAuthHandler } from '../handler.mjs';
 
 const issuer =
   'https://cognito-idp.ap-northeast-1.amazonaws.com/ap-northeast-1_test';
-const userId = 'family-member-sub';
+const userId = 'library-user-sub';
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
   modulusLength: 2048,
 });

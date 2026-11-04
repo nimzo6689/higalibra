@@ -24,14 +24,12 @@ export function LoginScreen({
         <Brand />
         <p className="eyebrow login-eyebrow">YOUR LITTLE LIBRARY</p>
         <h1>
-          家族の読書時間を、
+          図書館の利用状況を、
           <br />
           ひとつの場所に。
         </h1>
         <p className="login-copy">
-          貸出中の本も、予約の順番も。
-          <br />
-          家族みんなの図書館を、いつでもチェック。
+          貸出中の本や予約状況を、いつでもチェック。
         </p>
         {error && (
           <div className="login-error" role="alert">
@@ -53,7 +51,7 @@ export function LoginScreen({
           </p>
         )}
         <p className="login-foot">
-          <ShieldCheck size={15} /> 家族だけが見られる、安全な記録です。
+          <ShieldCheck size={15} /> ログインした利用者のみが見られる、安全な記録です。
         </p>
       </section>
       <p className="login-credit">READ TOGETHER, EVERY DAY.</p>

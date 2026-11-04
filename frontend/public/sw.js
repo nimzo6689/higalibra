@@ -63,17 +63,23 @@ self.addEventListener('push', (event) => {
   try {
     notice = event.data?.json() ?? {};
   } catch {
-    notice = { title: '図書館ノート', message: event.data?.text() ?? '' };
+    notice = {
+      title: '図書館ダッシュボード',
+      message: event.data?.text() ?? '',
+    };
   }
 
   event.waitUntil(
-    self.registration.showNotification(notice.title ?? '図書館ノート', {
-      body: notice.message ?? '図書館の状況が更新されました。',
-      icon: '/icon.svg',
-      badge: '/icon.svg',
-      data: { url: notice.url ?? '/' },
-      tag: notice.type ?? 'library-update',
-    }),
+    self.registration.showNotification(
+      notice.title ?? '図書館ダッシュボード',
+      {
+        body: notice.message ?? '図書館の状況が更新されました。',
+        icon: '/icon.svg',
+        badge: '/icon.svg',
+        data: { url: notice.url ?? '/' },
+        tag: notice.type ?? 'library-update',
+      },
+    ),
   );
 });
 

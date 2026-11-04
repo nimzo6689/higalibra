@@ -296,7 +296,7 @@ export default function App() {
           <div className="secure-note">
             <ShieldCheck size={18} />
             <span>
-              家族だけの
+              ログインした利用者だけの
               <br />
               プライベートな記録
             </span>
@@ -307,9 +307,9 @@ export default function App() {
               if (authConfiguration) signOut(authConfiguration);
             }}
           >
-            <span className="avatar avatar-small">家</span>
+            <span className="avatar avatar-small">図</span>
             <span className="profile-copy">
-              <strong>ファミリー</strong>
+              <strong>利用者アカウント</strong>
               <small>ログアウト</small>
             </span>
             <LogOut size={17} />
@@ -398,7 +398,7 @@ export default function App() {
         </main>
 
         <footer className="page-footer">
-          <span>家族の図書館ノート</span>
+          <span>図書館ダッシュボード</span>
           {snapshot?.lastUpdated && (
             <span>最終更新 {formatDateTime(snapshot.lastUpdated)}</span>
           )}

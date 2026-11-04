@@ -42,7 +42,7 @@ function event(
   };
 }
 
-test('registers a subscription for the edge-authenticated family member', async () => {
+test('registers a subscription for the edge-authenticated user', async () => {
   const { route, saved } = createRoute();
 
   const response = await route(

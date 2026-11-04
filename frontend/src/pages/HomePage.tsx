@@ -44,18 +44,18 @@ export function HomePage({
   onTogglePush: () => void;
   onNavigate: (route: Route) => void;
 }) {
-  const familyNames = users.map((user) => user.name).join('・');
+  const userNames = users.map((user) => user.name).join('・');
   return (
     <div className="page-stack">
       <section className="welcome-row">
         <div>
           <p className="eyebrow">
-            <Sparkles size={14} /> YOUR FAMILY LIBRARY
+            <Sparkles size={14} /> LIBRARY DASHBOARD
           </p>
           <h1>おかえりなさい。</h1>
           <p className="welcome-subtitle">
-            {familyNames ? `${familyNames}さんの` : '家族みんなの'}
-            図書館の記録です。
+            {userNames ? `${userNames}さんの` : ''}
+            図書館利用状況です。
           </p>
         </div>
         <button className="date-chip" onClick={() => onNavigate('/borrowed')}>
@@ -84,7 +84,7 @@ export function HomePage({
                 <CircleAlert size={14} /> 返却期限にご注意
               </>
             ) : (
-              '家族みんなの貸出中'
+              'すべての利用者の貸出中'
             )}
             <ArrowRight size={15} />
           </span>

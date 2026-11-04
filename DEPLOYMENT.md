@@ -83,7 +83,7 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
 7. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
    購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
-8. AWS CLI または Cognito コンソールを使って、家族それぞれの Cognito ユーザーを作成します。
+8. AWS CLI または Cognito コンソールを使って、各利用者の Cognito ユーザーを作成します。
    図書館カード番号は手順 3 の SSM 対応表に登録するため、Cognito の `custom:cardNo`
    属性設定は不要です。CLI の例：
 

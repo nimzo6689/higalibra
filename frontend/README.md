@@ -1,6 +1,6 @@
-# Mesh
+# 図書館ダッシュボード
 
-家族向けの貸出・予約状況 PWA です。Cognito Hosted UI の Google 認証を使い、
+利用者の貸出・予約状況を管理する PWA です。Cognito Hosted UI の Google 認証を使い、
 Authorization Code Grant + PKCE でログインして状態 JSON と Web Push 購読 API を利用します。
 
 ## 設定

@@ -24,7 +24,7 @@ export function BorrowedPage({
       <PageIntro
         eyebrow="BORROWED BOOKS"
         title="貸出中の本"
-        subtitle="家族みんなが今読んでいる本の一覧です。"
+        subtitle="登録利用者が借りている本の一覧です。"
         icon={<BookOpen size={22} />}
       />
       <div className="list-toolbar">

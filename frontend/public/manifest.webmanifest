@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "図書館ノート",
-  "short_name": "図書館ノート",
-  "description": "家族みんなの図書館の貸出・予約状況",
+  "name": "図書館ダッシュボード",
+  "short_name": "図書館ダッシュボード",
+  "description": "図書館の貸出・予約状況を確認・管理できます。",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -18,7 +18,7 @@ Lambda に次の環境変数を設定します。
 Parameter Store の `SecureString` に、以下の JSON を保存してください。図書館
 アカウントと VAPID 秘密鍵はリポジトリや Lambda 環境変数に置かず、暗号化した
 `SecureString` として管理します。
-`users` には家族4人分の利用者情報を設定します。
+`users` には利用者ごとの情報を設定します。
 
 ```json
 {

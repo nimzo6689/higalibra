@@ -134,7 +134,7 @@ test('re-evaluates dry-run history before making live reservations', async () =>
   assert.equal(state.history.books[0].status, 'reserved');
 });
 
-test('reserves on the configured account and notifies the family', async () => {
+test('reserves on the configured account and sends a notification', async () => {
   const { dependencies, state } = makeDependencies();
 
   const result = await runDash(secret, dependencies);

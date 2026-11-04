@@ -17,7 +17,7 @@ export function UserFilter({
         value={selected}
         onChange={(event) => onChange(event.target.value)}
       >
-        <option value="all">家族全員</option>
+        <option value="all">すべての利用者</option>
         {users.map((user) => (
           <option value={user.cardNo} key={user.cardNo}>
             {user.name}
