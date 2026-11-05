@@ -59,6 +59,7 @@ async function saveSubscription(
   onSessionRefresh: (session: AuthSession) => void,
   subscription: PushSubscription,
 ): Promise<void> {
+  const deviceId = getDeviceId();
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'POST',
     headers: {
@@ -66,12 +67,16 @@ async function saveSubscription(
       'content-type': 'application/json',
     },
     body: JSON.stringify({
-      deviceId: getDeviceId(),
+      deviceId,
       subscription: subscription.toJSON(),
     }),
   }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の登録に失敗しました (HTTP ${response.status})。`);
+  }
+  const result = await readApiResponse(response);
+  if (result.deviceId !== deviceId || typeof result.updatedAt !== 'string') {
+    throw new Error('通知 API から想定外の登録結果が返されました。');
   }
 }
 
@@ -81,16 +86,21 @@ export async function disablePush(
   configuration: AuthConfiguration | null,
   onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
+  const deviceId = getDeviceId();
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'DELETE',
     headers: {
       authorization: `Bearer ${idToken}`,
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ deviceId: getDeviceId() }),
+    body: JSON.stringify({ deviceId }),
   }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の解除に失敗しました (HTTP ${response.status})。`);
+  }
+  const result = await readApiResponse(response);
+  if (result.deleted !== true) {
+    throw new Error('通知 API から想定外の解除結果が返されました。');
   }
   if ('serviceWorker' in navigator && 'PushManager' in window) {
     const registration = await navigator.serviceWorker.getRegistration('/');
@@ -112,6 +122,26 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
     throw new Error('このブラウザーは Service Worker に対応していません。');
   }
   return navigator.serviceWorker.register('/sw.js');
+}
+
+async function readApiResponse(
+  response: Response,
+): Promise<Record<string, unknown>> {
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new Error(
+      `通知 API から JSON 以外の応答が返されました (HTTP ${response.status}, ${contentType || 'content-type なし'})。`,
+    );
+  }
+  const value: unknown = await response.json();
+  if (!isRecord(value)) {
+    throw new Error('通知 API から想定外の応答が返されました。');
+  }
+  return value;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function decodeVapidKey(key: string): Uint8Array<ArrayBuffer> {
