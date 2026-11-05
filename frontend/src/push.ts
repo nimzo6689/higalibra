@@ -60,16 +60,18 @@ async function saveSubscription(
   subscription: PushSubscription,
 ): Promise<void> {
   const deviceId = getDeviceId();
+  const body = JSON.stringify({
+    deviceId,
+    subscription: subscription.toJSON(),
+  });
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'POST',
     headers: {
       authorization: `Bearer ${idToken}`,
+      'x-amz-content-sha256': await sha256Hex(body),
       'content-type': 'application/json',
     },
-    body: JSON.stringify({
-      deviceId,
-      subscription: subscription.toJSON(),
-    }),
+    body,
   }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の登録に失敗しました (HTTP ${response.status})。`);
@@ -87,13 +89,15 @@ export async function disablePush(
   onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
   const deviceId = getDeviceId();
+  const body = JSON.stringify({ deviceId });
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'DELETE',
     headers: {
       authorization: `Bearer ${idToken}`,
+      'x-amz-content-sha256': await sha256Hex(body),
       'content-type': 'application/json',
     },
-    body: JSON.stringify({ deviceId }),
+    body,
   }, configuration, idToken, onSessionRefresh);
   if (!response.ok) {
     throw new Error(`通知の解除に失敗しました (HTTP ${response.status})。`);
@@ -142,6 +146,16 @@ async function readApiResponse(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(value),
+  );
+  return Array.from(new Uint8Array(digest), (byte) =>
+    byte.toString(16).padStart(2, '0'),
+  ).join('');
 }
 
 function decodeVapidKey(key: string): Uint8Array<ArrayBuffer> {

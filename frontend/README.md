@@ -26,7 +26,9 @@ Google OAuth クライアントのリダイレクト URI には
 Lambda@Edge が Cognito ID token を検証した後、非公開 StatusBucket の
 `user_status.json` を OAC 経由で返します。購読の POST / DELETE は同一 origin の
 `/subscriptions` behavior から Push Lambda に転送します。ブラウザーと API は同一 origin
-なので CORS は使用しません。SPA の画面遷移は CloudFront Function が HTML ナビゲーションを
+なので CORS は使用しません。購読APIの本文は SHA-256 を計算して
+`x-amz-content-sha256` として送信し、CloudFront の OAC 署名を検証可能にします。
+SPA の画面遷移は CloudFront Function が HTML ナビゲーションを
 `/index.html` に書き換えて処理し、API の origin エラーを SPA の成功応答に置き換えません。
 ログイン時にはブラウザーに残っている購読情報を再度 POST し、
 Push Lambda 側の購読状態と同期します。画面の同期ボタンは認証済み `POST /keeper` で Keeper を実行し、
