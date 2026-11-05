@@ -10,10 +10,10 @@ export async function enablePush(
   onSessionRefresh: (session: AuthSession) => void,
   vapidPublicKey: string,
 ): Promise<void> {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+  if (!('PushManager' in window)) {
     throw new Error('このブラウザーは Web Push 通知に対応していません。');
   }
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getPushRegistration();
   const subscription =
     (await registration.pushManager.getSubscription()) ??
     (await registration.pushManager.subscribe({
@@ -38,7 +38,7 @@ export async function registerExistingPushSubscription(
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return false;
   }
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getPushRegistration();
   const subscription = await registration.pushManager.getSubscription();
   if (!subscription) return false;
 
@@ -81,10 +81,6 @@ export async function disablePush(
   configuration: AuthConfiguration | null,
   onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
-  const registration = await navigator.serviceWorker.ready;
-  const subscription = await registration.pushManager.getSubscription();
-  if (!subscription) return;
-
   const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
     method: 'DELETE',
     headers: {
@@ -96,15 +92,26 @@ export async function disablePush(
   if (!response.ok) {
     throw new Error(`通知の解除に失敗しました (HTTP ${response.status})。`);
   }
-  await subscription.unsubscribe();
+  if ('serviceWorker' in navigator && 'PushManager' in window) {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    const subscription = await registration?.pushManager.getSubscription();
+    await subscription?.unsubscribe();
+  }
 }
 
 export async function hasPushSubscription(): Promise<boolean> {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     return false;
   }
-  const registration = await navigator.serviceWorker.ready;
+  const registration = await getPushRegistration();
   return (await registration.pushManager.getSubscription()) !== null;
+}
+
+async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
+  if (!('serviceWorker' in navigator)) {
+    throw new Error('このブラウザーは Service Worker に対応していません。');
+  }
+  return navigator.serviceWorker.register('/sw.js');
 }
 
 function decodeVapidKey(key: string): Uint8Array<ArrayBuffer> {
