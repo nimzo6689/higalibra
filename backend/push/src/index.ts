@@ -46,7 +46,14 @@ export function createHandler(dependencies: PushApiDependencies) {
   ): Promise<FunctionUrlResponse> {
     const method = (event.requestContext?.http?.method ?? '').toUpperCase();
     const path = event.rawPath ?? event.requestContext?.http?.path ?? '';
-    if (path !== '/subscriptions') {
+    const deletePathPrefix = '/subscriptions/';
+    if (path !== '/subscriptions' && !path.startsWith(deletePathPrefix)) {
+      return response(404, { error: 'Not found.' });
+    }
+    if (
+      (method === 'POST' && path !== '/subscriptions') ||
+      (method === 'DELETE' && !path.startsWith(deletePathPrefix))
+    ) {
       return response(404, { error: 'Not found.' });
     }
     if (method !== 'POST' && method !== 'DELETE') {
@@ -62,24 +69,23 @@ export function createHandler(dependencies: PushApiDependencies) {
       return response(401, { error: 'Authenticated identity is missing.' });
     }
 
-    let body: unknown;
-    try {
-      body = parseBody(event);
-    } catch {
-      return response(400, { error: 'Request body must be valid JSON.' });
-    }
-    if (!isRecord(body)) {
-      return response(400, { error: 'Request body must be a JSON object.' });
-    }
-
-    const deviceId = readDeviceId(body.deviceId);
-    if (!deviceId) {
-      return response(400, {
-        error: 'deviceId must be 1-128 URL-safe characters.',
-      });
-    }
-
     if (method === 'POST') {
+      let body: unknown;
+      try {
+        body = parseBody(event);
+      } catch {
+        return response(400, { error: 'Request body must be valid JSON.' });
+      }
+      if (!isRecord(body)) {
+        return response(400, { error: 'Request body must be a JSON object.' });
+      }
+
+      const deviceId = readDeviceId(body.deviceId);
+      if (!deviceId) {
+        return response(400, {
+          error: 'deviceId must be 1-128 URL-safe characters.',
+        });
+      }
       const subscription = readSubscription(body.subscription);
       if (!subscription) {
         return response(400, {
@@ -100,6 +106,13 @@ export function createHandler(dependencies: PushApiDependencies) {
         updatedAt,
       );
       return response(200, { deviceId, updatedAt });
+    }
+
+    const deviceId = readDeviceId(path.slice(deletePathPrefix.length));
+    if (!deviceId) {
+      return response(400, {
+        error: 'deviceId must be 1-128 URL-safe characters.',
+      });
     }
 
     const cardNo = await resolveCardNo(dependencies, user.email);

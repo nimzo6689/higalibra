@@ -196,6 +196,23 @@ test('forwards only the verified email claim to the Push Lambda origin', async (
   );
 });
 
+test('allows authenticated bodyless DELETE requests for a device subscription', async () => {
+  const handler = createHandler();
+  const deleted = await handler(
+    cloudFrontEvent('/subscriptions/device-1', createToken(), 'DELETE'),
+  );
+  const invalidMethod = await handler(
+    cloudFrontEvent('/subscriptions/device-1', createToken(), 'POST'),
+  );
+
+  assert.equal(
+    deleted.headers['x-authenticated-email'][0].value,
+    'member@example.com',
+  );
+  assert.equal(invalidMethod.status, '405');
+  assert.equal(invalidMethod.headers.allow[0].value, 'DELETE');
+});
+
 test('forwards only the verified email claim to the Keeper Lambda origin', async () => {
   const request = cloudFrontEvent('/keeper', createToken(), 'POST').Records[0]
     .cf.request;

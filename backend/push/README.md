@@ -13,18 +13,19 @@ Google OAuth 側で設定します。Lambda@Edge は
 署名検証した ID token の `email` と `email_verified` を確認し、`/subscriptions` では
 メールアドレスを内部ヘッダーに設定して OAC で保護された origin request policy を
 通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
-Lambda Function URL の OAC は unsigned payload を受け付けないため、POST / DELETE の
-本文には SHA-256 を計算し、`x-amz-content-sha256` ヘッダーとして CloudFront に送る必要があります。
-このヘッダーは CloudFront が OAC 署名に使用します。
+Lambda Function URL の OAC は unsigned payload を受け付けないため、POST 本文の
+SHA-256 を計算し、`x-amz-content-sha256` ヘッダーとして CloudFront に送る必要があります。
+このヘッダーは CloudFront が OAC 署名に使用します。DELETE は本文を送らず、
+`deviceId` をパスに含めます。
 
 この Lambda は `ALLOWED_EMAILS_PARAMETER_NAME` の SSM SecureString を読み、
 検証済みメールアドレスに対応するカード番号を取得します。購読先はこの対応表で特定し、
 リクエスト本文から利用者IDを受け取らないため、別利用者の購読を登録・解除できません。
 
-| Method   | Path             | JSON body                                                                                           | 動作                               |
-| -------- | ---------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `POST`   | `/subscriptions` | `{"deviceId":"...","subscription":{"endpoint":"https://...","keys":{"p256dh":"...","auth":"..."}}}` | 購読の登録・更新                   |
-| `DELETE` | `/subscriptions` | `{"deviceId":"..."}`                                                                                | ログイン中ユーザーの端末購読を解除 |
+| Method   | Path                        | JSON body                                                                                           | 動作                               |
+| -------- | --------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `POST`   | `/subscriptions`            | `{"deviceId":"...","subscription":{"endpoint":"https://...","keys":{"p256dh":"...","auth":"..."}}}` | 購読の登録・更新                   |
+| `DELETE` | `/subscriptions/<deviceId>` | なし                                                                                                | ログイン中ユーザーの端末購読を解除 |
 
 成功応答は JSON で返ります。入力不正は `400`、CloudFront から認証済み identity header
 が渡されない場合は `401`、未対応ルート・method は `404/405` です。DynamoDB への

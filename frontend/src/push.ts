@@ -64,15 +64,21 @@ async function saveSubscription(
     deviceId,
     subscription: subscription.toJSON(),
   });
-  const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
-    method: 'POST',
-    headers: {
-      authorization: `Bearer ${idToken}`,
-      'x-amz-content-sha256': await sha256Hex(body),
-      'content-type': 'application/json',
+  const response = await fetchWithTokenRefresh(
+    new URL('/subscriptions', apiUrl),
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        'x-amz-content-sha256': await sha256Hex(body),
+        'content-type': 'application/json',
+      },
+      body,
     },
-    body,
-  }, configuration, idToken, onSessionRefresh);
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
   if (!response.ok) {
     throw new Error(`通知の登録に失敗しました (HTTP ${response.status})。`);
   }
@@ -89,16 +95,18 @@ export async function disablePush(
   onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
   const deviceId = getDeviceId();
-  const body = JSON.stringify({ deviceId });
-  const response = await fetchWithTokenRefresh(new URL('/subscriptions', apiUrl), {
-    method: 'DELETE',
-    headers: {
-      authorization: `Bearer ${idToken}`,
-      'x-amz-content-sha256': await sha256Hex(body),
-      'content-type': 'application/json',
+  const response = await fetchWithTokenRefresh(
+    new URL(`/subscriptions/${encodeURIComponent(deviceId)}`, apiUrl),
+    {
+      method: 'DELETE',
+      headers: {
+        authorization: `Bearer ${idToken}`,
+      },
     },
-    body,
-  }, configuration, idToken, onSessionRefresh);
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
   if (!response.ok) {
     throw new Error(`通知の解除に失敗しました (HTTP ${response.status})。`);
   }

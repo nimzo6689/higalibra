@@ -73,10 +73,27 @@ test('resolves the card number from the normalized verified email', async () => 
 test('deletes only the edge-authenticated user device subscription', async () => {
   const { route, deleted } = createRoute();
 
-  const response = await route(event('DELETE', { deviceId: 'phone-1' }));
+  const response = await route({
+    rawPath: '/subscriptions/phone-1',
+    requestContext: { http: { method: 'DELETE' } },
+    headers: { 'x-authenticated-email': email },
+  });
 
   assert.equal(response.statusCode, 200);
   assert.deepEqual(deleted, [[cardNo, 'phone-1']]);
+});
+
+test('rejects invalid device IDs in delete paths', async () => {
+  const { route, deleted } = createRoute();
+
+  const response = await route({
+    rawPath: '/subscriptions/device%231',
+    requestContext: { http: { method: 'DELETE' } },
+    headers: { 'x-authenticated-email': email },
+  });
+
+  assert.equal(response.statusCode, 400);
+  assert.equal(deleted.length, 0);
 });
 
 test('requires a verified identity from the CloudFront edge authorizer', async () => {

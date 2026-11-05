@@ -16,16 +16,23 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
     removeHeader(request.headers, 'x-authenticated-card-no');
     removeHeader(request.headers, 'x-authenticated-email');
 
+    const isSubscriptionRequest =
+      request.uri === '/subscriptions' ||
+      request.uri.startsWith('/subscriptions/');
     if (request.uri === '/status') {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return errorResponse(405, 'Method not allowed.', {
           allow: 'GET, HEAD',
         });
       }
-    } else if (request.uri === '/subscriptions') {
-      if (request.method !== 'POST' && request.method !== 'DELETE') {
+    } else if (isSubscriptionRequest) {
+      const methodAllowed =
+        request.uri === '/subscriptions'
+          ? request.method === 'POST'
+          : request.method === 'DELETE';
+      if (!methodAllowed) {
         return errorResponse(405, 'Method not allowed.', {
-          allow: 'POST, DELETE',
+          allow: request.uri === '/subscriptions' ? 'POST' : 'DELETE',
         });
       }
     } else if (request.uri === '/keeper') {
@@ -49,8 +56,7 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         ...configuration,
         issuer,
         loadJwks,
-        requireEmail:
-          request.uri === '/subscriptions' || request.uri === '/keeper',
+        requireEmail: isSubscriptionRequest || request.uri === '/keeper',
       });
     } catch (error) {
       if (error instanceof InvalidTokenError) {
@@ -62,7 +68,7 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
 
     removeHeader(request.headers, 'authorization');
     removeHeader(request.headers, 'x-cognito-id-token');
-    if (request.uri === '/subscriptions' || request.uri === '/keeper') {
+    if (isSubscriptionRequest || request.uri === '/keeper') {
       request.headers['x-authenticated-email'] = [
         { key: 'X-Authenticated-Email', value: claims.email },
       ];
