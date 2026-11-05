@@ -15,7 +15,7 @@ Google OAuth 側で設定します。Lambda@Edge は
 通じてこの Lambda に転送します。この Lambda は JWT を検証しません。
 Lambda Function URL の OAC は unsigned payload を受け付けないため、POST / DELETE の
 本文には SHA-256 を計算し、`x-amz-content-sha256` ヘッダーとして CloudFront に送る必要があります。
-CloudFront の API origin request policy もこのヘッダーを転送します。
+このヘッダーは CloudFront が OAC 署名に使用します。
 
 この Lambda は `ALLOWED_EMAILS_PARAMETER_NAME` の SSM SecureString を読み、
 検証済みメールアドレスに対応するカード番号を取得します。購読先はこの対応表で特定し、
