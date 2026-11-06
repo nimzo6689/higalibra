@@ -24,7 +24,12 @@ export function parseUserStatus(html: Buffer): UserStatus {
       return {
         status: parseEnum<BorrowedBookStatus>(
           cellText(statusCells.eq(1)).replace(/\s+/g, ''),
-          ['更新回数に達しました。', '再貸出', 'まだ更新できません', '予約待ちあり'],
+          [
+            '更新回数に達しました。',
+            '再貸出',
+            'まだ更新できません',
+            '予約待ちあり',
+          ],
           'status',
         ),
         title: cellText(cells.eq(2)),
@@ -196,7 +201,7 @@ function parseOptionalLibraryDate(
   return value === '' ? null : parseLibraryDate(value, property);
 }
 
-function parsePublicationDate(value: string): Temporal.PlainDate {
+function parsePublicationDate(value: string): Temporal.PlainDate | null {
   const normalizedValue = value.trim();
   const wrappers: Record<string, string> = {
     '[': ']',
@@ -215,12 +220,17 @@ function parsePublicationDate(value: string): Temporal.PlainDate {
       : normalizedValue;
   const match = /^(\d{4})(?:\.(\d{1,2}))?$/.exec(unwrappedValue);
   if (!match) {
-    throw new Error(
-      `Invalid publishedOn: expected YYYY or YYYY.M, optionally enclosed in matching [], <>, (), 【】, 「」, 『』, 《》, or "", received ${JSON.stringify(value)}.`,
-    );
+    return null;
   }
 
-  return parsePlainDate(match[1], match[2] ?? '1', '1', 'publishedOn', value);
+  try {
+    return parsePlainDate(match[1], match[2] ?? '1', '1', 'publishedOn', value);
+  } catch (error) {
+    if (error instanceof RangeError) {
+      return null;
+    }
+    throw error;
+  }
 }
 
 function parsePlainDate(

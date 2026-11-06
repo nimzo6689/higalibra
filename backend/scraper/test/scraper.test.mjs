@@ -114,3 +114,49 @@ test('getUserStatus caches cover image URLs by book title', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('getNewBooks returns null when publishedOn cannot be parsed', async () => {
+  const originalFetch = globalThis.fetch;
+  const rows = [
+    ['Invalid date', '2026.13'],
+    ['Valid date', '2026.10'],
+  ]
+    .map(
+      ([title, publishedOn]) => `
+        <tr><td>2026/10/01</td><td><input value="${title}"></td>
+          <td>${title}</td><td>Author</td><td>Publisher</td>
+          <td>${publishedOn}</td><td>○ 在架あり</td></tr>
+      `,
+    )
+    .join('');
+  const newBooksHtml = `
+    <meta charset="utf-8">
+    <div id="contents">
+      ${'<div></div>'.repeat(10)}
+      <div><table><tr><th>headers</th></tr>${rows}</table></div>
+    </div>
+  `;
+
+  globalThis.fetch = async (input) => {
+    const url = new URL(input);
+    return new Response(
+      url.pathname.endsWith('/OPWNEWBOOK.CSP') ? newBooksHtml : '',
+      { headers: { 'set-cookie': 'SID=session; Path=/' } },
+    );
+  };
+
+  try {
+    const scraper = createScraper({
+      baseUrl: 'https://library.example/OPW',
+      cardNo: 'card',
+      password: 'password',
+    });
+
+    const books = await scraper.getNewBooks();
+
+    assert.equal(books[0].publishedOn, null);
+    assert.equal(books[1].publishedOn.toString(), '2026-10-01');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

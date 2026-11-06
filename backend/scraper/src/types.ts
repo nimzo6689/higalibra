@@ -50,7 +50,7 @@ export interface NewBook {
   title: string;
   author: string;
   publisher: string;
-  publishedOn: Temporal.PlainDate; // 月初日として保持
+  publishedOn: Temporal.PlainDate | null; // 月初日として保持
   availabilityStatus: AvailabilityStatus;
 }
 
