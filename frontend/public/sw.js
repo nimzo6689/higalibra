@@ -31,7 +31,8 @@ self.addEventListener('fetch', (event) => {
   if (
     request.method !== 'GET' ||
     url.origin !== self.location.origin ||
-    url.pathname.startsWith('/oauth2/')
+    url.pathname.startsWith('/oauth2/') ||
+    url.pathname === '/status'
   ) {
     return;
   }
