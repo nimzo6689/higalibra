@@ -80,7 +80,8 @@ export async function runKeeper(
       ),
       ...findReturnNotices(
         user.cardNo,
-        status.borrowedBooks,
+        storedUser.borrowedBooks,
+        previousUsers.get(user.cardNo)?.borrowedBooks ?? [],
         extendedBarcodes,
         today,
         extensionWindowDays,
@@ -197,16 +198,34 @@ function findReservationNotices(
 
 function findReturnNotices(
   cardNo: string,
-  books: BorrowedBook[],
+  books: StoredBorrowedBook[],
+  previous: StoredBorrowedBook[],
   extendedBarcodes: Set<string>,
   today: Temporal.PlainDate,
   extensionWindowDays: number,
 ): { cardNo: string; notice: PushNotice }[] {
+  const previousByBarcode = new Map(
+    previous.map((book) => [book.barcode, book]),
+  );
+
   return books.flatMap((book) => {
     if (extendedBarcodes.has(book.barcode)) {
       return [];
     }
-    const daysUntilReturn = daysUntil(book.returnOn, today);
+    const previousBook = previousByBarcode.get(book.barcode);
+    if (
+      previousBook &&
+      previousBook.status === book.status &&
+      previousBook.title === book.title &&
+      previousBook.genre === book.genre &&
+      previousBook.loanDate === book.loanDate &&
+      previousBook.returnDate === book.returnDate
+    ) {
+      return [];
+    }
+
+    const returnOn = Temporal.PlainDate.from(book.returnDate);
+    const daysUntilReturn = daysUntil(returnOn, today);
     if (daysUntilReturn > extensionWindowDays) {
       return [];
     }
@@ -217,9 +236,9 @@ function findReturnNotices(
         notice: {
           type: 'return-due',
           title: '返却期限が近づいています',
-          message: `「${book.title}」の返却期限は${book.returnOn.toString()}です。`,
+          message: `「${book.title}」の返却期限は${returnOn.toString()}です。`,
           bookTitle: book.title,
-          date: book.returnOn.toString(),
+          date: returnOn.toString(),
         },
       },
     ];

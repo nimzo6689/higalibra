@@ -178,6 +178,58 @@ test('notifies only when a reservation first becomes held', async () => {
   assert.equal(saved.length, 1);
 });
 
+test('notifies only for near-due loans that are new or changed', async () => {
+  const previous = {
+    lastUpdated: '2026-10-26T09:00:00.000Z',
+    users: [
+      {
+        cardNo: user.cardNo,
+        name: user.name,
+        borrowedBooks: [
+          {
+            barcode: 'same-loan',
+            status: '更新できません',
+            title: 'same-loan',
+            imageUrl: null,
+            author: '',
+            genre: '一般',
+            loanDate: '2026-10-01',
+            returnDate: '2026-10-28',
+          },
+        ],
+        reservedBooks: [],
+      },
+    ],
+  };
+  const status = {
+    borrowedBooks: [
+      borrowedBook({
+        barcode: 'same-loan',
+        returnOn: '2026-10-28',
+      }),
+      borrowedBook({
+        barcode: 'same-loan',
+        returnOn: '2026-10-29',
+      }),
+      borrowedBook({
+        barcode: 'changed-loan',
+        returnOn: '2026-10-29',
+      }),
+    ],
+    reservedBooks: [],
+  };
+  const { deps, notices } = dependencies({ previous, status });
+
+  await runKeeper(secret, deps);
+
+  assert.equal(notices.length, 2);
+  assert.equal(notices[0].notice.type, 'return-due');
+  assert.deepEqual(
+    notices.map(({ notice }) => notice.bookTitle),
+    ['same-loan', 'changed-loan'],
+  );
+});
+
 test('preserves image URLs in the stored status snapshot', async () => {
   const status = {
     borrowedBooks: [
