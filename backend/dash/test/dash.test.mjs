@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { parseDashSecret } from '../src/aws.ts';
-import { runDash } from '../src/dash.ts';
+import { createBookPrompt, runDash } from '../src/dash.ts';
 
 const secret = {
   baseUrl: 'https://library.example/OPW',
@@ -50,6 +50,28 @@ test('parses card-number keyed configuration without a duplicate userId', () => 
     ['card-1', 'card-2', 'card-3', 'card-4'],
   );
   assert.equal('userId' in parsed.users[0], false);
+});
+
+test('includes null publication month when the date is unavailable', () => {
+  const prompt = createBookPrompt({
+    ...books[0],
+    publishedOn: null,
+  });
+
+  assert.match(prompt, /"publishedMonth":null/);
+});
+
+test('includes reader preferences as data in the book prompt', () => {
+  const prompt = createBookPrompt(books[0], [
+    'IT-related technical books',
+    'Kobunsha Shinsho',
+  ]);
+
+  assert.match(
+    prompt,
+    /Reader preferences \(JSON data\):\n\["IT-related technical books","Kobunsha Shinsho"\]/,
+  );
+  assert.match(prompt, /consider how well the book matches them/);
 });
 
 function makeDependencies({ history = { version: 1, books: [] }, push } = {}) {

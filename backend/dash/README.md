@@ -77,6 +77,10 @@ pnpm repl
 
 REPL では `await scraper.getNewBooks()` で新着一覧を確認し、
 `await evaluateBook(books[0])` で Gemini の評価を1冊単位で確認できます。
+読者の好みは `backend/dash/.book-preferences.json` の `preferences` 配列に設定します。
+このファイルは git 管理対象外で、既定では `pnpm repl` から読み込まれます。
+別の場所を使う場合は `DASH_BOOK_PREFERENCES_PATH` で指定できます。ファイルがない場合は
+好みを指定せずに評価し、JSON の形式が不正な場合は REPL の起動に失敗します。
 `await runDash()` は dry-run が既定で、予約・Web Push は行わず、ローカルの
 `.dash-history.json` に評価結果を保存します。実際に図書館予約を行う場合のみ、
 明示的に `await runDash({ dryRun: false })` を実行してください。これは図書館

@@ -3,11 +3,12 @@ import type { NewBook } from '@higalibra/scraping';
 import { createBookPrompt } from './dash.js';
 import type { BookDecision } from './types.js';
 
-const DEFAULT_MODEL = 'gemini-2.5-flash';
+const DEFAULT_MODEL = 'gemini-flash-latest';
 
 export function createGeminiBookEvaluator(
   apiKey: string,
   model = DEFAULT_MODEL,
+  preferences: readonly string[] = [],
 ): (book: NewBook) => Promise<BookDecision> {
   if (!apiKey.trim()) {
     throw new Error('Gemini API key must not be empty.');
@@ -17,7 +18,7 @@ export function createGeminiBookEvaluator(
   return async (book) => {
     const response = await client.models.generateContent({
       model,
-      contents: createBookPrompt(book),
+      contents: createBookPrompt(book, preferences),
       config: {
         tools: [{ googleSearch: {} }],
       },
