@@ -2,7 +2,13 @@ import type { Route } from './types';
 
 export function readRoute(): Route {
   const pathname = window.location.pathname;
-  const routes: Route[] = ['/', '/borrowed', '/reservations', '/barcode'];
+  const routes: Route[] = [
+    '/',
+    '/borrowed',
+    '/reservations',
+    '/barcode',
+    '/settings',
+  ];
   return routes.includes(pathname as Route) ? (pathname as Route) : '/';
 }
 

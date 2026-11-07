@@ -16,7 +16,7 @@ Parameters:
     Description: S3 key for the Push Lambda deployment package.
   KeeperParameterName:
     Type: String
-    Description: Name of the pre-created SSM SecureString parameter containing library, VAPID, and Gemini credentials.
+    Description: Name of the pre-created SSM SecureString parameter containing library and VAPID credentials.
   AllowedEmailsParameterName:
     Type: String
     Description: Name of the pre-created SSM SecureString parameter mapping allowed Cognito emails to library card numbers.
@@ -39,6 +39,10 @@ Parameters:
     Type: String
     Default: dash_research_history.json
     Description: S3 object key for Dash's research history.
+  ReservationSettingsPrefix:
+    Type: String
+    Default: reservation-settings
+    Description: S3 key prefix for per-card-number Dash reservation settings.
   EdgeAuthFunctionVersionArn:
     Type: String
     Default: NONE
@@ -173,6 +177,16 @@ Resources:
         SigningBehavior: always
         SigningProtocol: sigv4
 
+  ReservationSettingsOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-reservation-settings-oac'
+        Description: CloudFront signed access to the reservation settings Lambda URL.
+        OriginAccessControlOriginType: lambda
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
   MeshSpaRewriteFunction:
     Type: AWS::CloudFront::Function
     Properties:
@@ -257,6 +271,18 @@ Resources:
               OriginReadTimeout: 120
               OriginSSLProtocols:
                 - TLSv1.2
+          - Id: ReservationSettingsLambdaOrigin
+            DomainName:
+              Fn::Select:
+                - 2
+                - Fn::Split:
+                    - /
+                    - Fn::GetAtt: ReservationSettingsFunctionUrl.FunctionUrl
+            OriginAccessControlId: !GetAtt ReservationSettingsOriginAccessControl.Id
+            CustomOriginConfig:
+              OriginProtocolPolicy: https-only
+              OriginSSLProtocols:
+                - TLSv1.2
         CacheBehaviors:
           Fn::If:
             - HasEdgeAuthFunction
@@ -296,6 +322,26 @@ Resources:
                     LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
               - PathPattern: /keeper*
                 TargetOriginId: KeeperLambdaOrigin
+                ViewerProtocolPolicy: redirect-to-https
+                AllowedMethods:
+                  - GET
+                  - HEAD
+                  - OPTIONS
+                  - PUT
+                  - POST
+                  - PATCH
+                  - DELETE
+                CachedMethods:
+                  - GET
+                  - HEAD
+                Compress: true
+                CachePolicyId: 4135ea2d-6df8-44a3-9df3-4b5a84be39ad
+                OriginRequestPolicyId: !Ref ApiOriginRequestPolicy
+                LambdaFunctionAssociations:
+                  - EventType: viewer-request
+                    LambdaFunctionARN: !Ref EdgeAuthFunctionVersionArn
+              - PathPattern: /reservation-settings*
+                TargetOriginId: ReservationSettingsLambdaOrigin
                 ViewerProtocolPolicy: redirect-to-https
                 AllowedMethods:
                   - GET
@@ -587,13 +633,13 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: s3:ListBucket
-                Resource: !GetAtt StatusBucket.Arn
-              - Effect: Allow
                 Action:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub '${StatusBucket.Arn}/${DashHistoryKey}'
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${StatusBucket.Arn}/${ReservationSettingsPrefix}/*'
               - Effect: Allow
                 Action: dynamodb:Scan
                 Resource: !GetAtt SubscriptionsTable.Arn
@@ -634,6 +680,7 @@ Resources:
           DASH_PARAMETER_NAME: !Ref KeeperParameterName
           DASH_HISTORY_BUCKET: !Ref StatusBucket
           DASH_HISTORY_KEY: !Ref DashHistoryKey
+          DASH_SETTINGS_PREFIX: !Ref ReservationSettingsPrefix
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
 
   DashSchedule:
@@ -653,6 +700,84 @@ Resources:
       Action: lambda:InvokeFunction
       Principal: events.amazonaws.com
       SourceArn: !GetAtt DashSchedule.Arn
+
+  ReservationSettingsExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: ReservationSettingsS3Access
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${StatusBucket.Arn}/${ReservationSettingsPrefix}/*'
+        - PolicyName: ReservationSettingsAllowedEmailsAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource:
+                  Fn::If:
+                    - AllowedEmailsParameterNameIsArn
+                    - Ref: AllowedEmailsParameterName
+                    - Fn::Sub: 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${AllowedEmailsParameterName}'
+
+  ReservationSettingsFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-reservation-settings'
+      Runtime: nodejs26.x
+      Handler: dist/index.reservationSettingsApiHandler
+      Role: !GetAtt ReservationSettingsExecutionRole.Arn
+      Timeout: 30
+      MemorySize: 256
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref DashObjectKey
+      Environment:
+        Variables:
+          DASH_HISTORY_BUCKET: !Ref StatusBucket
+          DASH_SETTINGS_PREFIX: !Ref ReservationSettingsPrefix
+          ALLOWED_EMAILS_PARAMETER_NAME: !Ref AllowedEmailsParameterName
+
+  ReservationSettingsFunctionUrl:
+    Type: AWS::Lambda::Url
+    Properties:
+      AuthType: AWS_IAM
+      TargetFunctionArn: !GetAtt ReservationSettingsFunction.Arn
+
+  ReservationSettingsFunctionUrlPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReservationSettingsFunction
+      Action: lambda:InvokeFunctionUrl
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+      FunctionUrlAuthType: AWS_IAM
+
+  ReservationSettingsFunctionInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref ReservationSettingsFunction
+      Action: lambda:InvokeFunction
+      Principal: cloudfront.amazonaws.com
+      SourceArn: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${MeshDistribution}'
+      InvokedViaFunctionUrl: true
 
   PushExecutionRole:
     Type: AWS::IAM::Role

@@ -12,17 +12,17 @@ Scraping や Push などの workspace package が使う依存関係も Lambda �
 
 Lambda の IAM 権限を変更した場合は、GitHub Actions のデプロイを再実行して
 CloudFormation スタックを更新してください。Lambda ZIP のみを差し替えても IAM
-ロールのポリシーは更新されません。Keeper / Dash は状態・調査履歴を扱う各 S3 bucket の
-`s3:ListBucket` と object 権限を使います。Mesh のデータ API は同一 CloudFront
-origin にまとめ、`/status` は OAC で保護した StatusBucket origin、`/subscriptions` は
-OAC で保護した Push Lambda URL origin、`/keeper` は OAC で保護した Keeper Lambda URL
-origin にルーティングします。
+ロールのポリシーは更新されません。Keeper は状態 S3 の一覧・object 権限を使い、Dash と
+予約設定 API は予約履歴・条件に必要な object 権限を使います。Mesh のデータ API は同一 CloudFront origin にまとめ、
+`/status` は OAC で保護した StatusBucket origin、`/subscriptions` は Push Lambda URL、
+`/keeper` は Keeper Lambda URL、`/reservation-settings` は Dash パッケージで動く設定 API
+Lambda URL origin にそれぞれルーティングします。
 
 CloudFront の viewer-request Lambda@Edge は必ず us-east-1 に作成し、Cognito ID token の
 署名・audience・期限を検証します。ログイン可能なアカウントの制限は Google OAuth 側で
 設定します。GitHub Actions の AWS role には
 us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / CloudFormation の
-更新権限も必要です。Push / Keeper Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが
+更新権限も必要です。Push / Keeper / 予約設定 API Lambda URL は `AWS_IAM` にし、CloudFront OAC のみが
 呼び出せるようにします。認証は同一 origin の CloudFront data paths で行うため CORS は
 設定しません。
 
@@ -36,16 +36,15 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Systems Manager Parameter Store に `/higalibra/keeper` という名前で
    `SecureString` パラメーターを作成します。リポジトリ Secret
    `KEEPER_PARAMETER_NAME` には `/higalibra/keeper` またはその完全な ARN を設定します。
-   パラメーターには、図書館の4アカウント分の情報、VAPID 認証情報、Google AI Studio
-   API キー、および Dash が予約に使用するカード番号を示す `reservationCardNo` を含めます。
+   パラメーターには、図書館の4アカウント分の情報と VAPID 認証情報を含めます。
 3. Cognito のサインアップ許可リストと図書館カード番号の対応表を Systems Manager
    Parameter Store の `SecureString` として作成します。値はメールアドレスをキー、
    カード番号を文字列値にする JSON オブジェクトです
    （例: `{"member1@example.com":"2010610570","member2@example.com":"2010610571"}`）。
    パラメーター名
    （例: `/higalibra/allowed-emails`）を GitHub Actions Secret
-   `ALLOWED_EMAILS_PARAMETER_NAME` に設定してください。PreSignUp と `/subscriptions`
-   API はこの対応表を使用し、メールアドレスの照合は大文字・小文字を区別しません。
+   `ALLOWED_EMAILS_PARAMETER_NAME` に設定してください。PreSignUp、`/subscriptions`、
+   `/reservation-settings` API はこの対応表を使用し、メールアドレスの照合は大文字・小文字を区別しません。
    呼び出しごとに SecureString を復号して参照するため、対応表の変更は Lambda の
    再デプロイなしで反映されます。既存環境では、従来のメールアドレス JSON 配列をこの
    対応表形式に更新してください。
@@ -81,7 +80,7 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    - `GOOGLE_OAUTH_CLIENT_SECRET`（必須。Google OAuth クライアント シークレット）
    - `VAPID_PUBLIC_KEY`（必須。Parameter Store に設定した鍵と対になる公開鍵）
 7. ワークフローを一度実行します。Cognito ユーザープールと Hosted UI、利用状況および
-   購読情報の保存先、PWA 配信環境、Keeper・Dash・Push の各 Lambda、毎日の Keeper
+   購読情報の保存先、PWA 配信環境、Keeper・Dash・Push・予約設定 API の各 Lambda、毎日の Keeper
    スケジュール、および毎週水曜日 16:00（日本時間）の Dash スケジュールが作成されます。
 8. AWS CLI または Cognito コンソールを使って、各利用者の Cognito ユーザーを作成します。
    図書館カード番号は手順 3 の SSM 対応表に登録するため、Cognito の `custom:cardNo`
@@ -116,7 +115,7 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    Google アカウントのメールアドレスと SSM 対応表のメールアドレスが一致することを
    確認してください。
 
-   `/subscriptions` と `/keeper` は Cognito ID token の署名・issuer・audience・期限と
+   `/subscriptions`、`/keeper`、`/reservation-settings` は Cognito ID token の署名・issuer・audience・期限と
    メール確認済み claim を Lambda@Edge で検証します。Push API はメールアドレスから SSM
    対応表を引いて cardNo を解決します。メールアドレスをリクエスト本文から指定することは
    できません。Mesh の同期ボタンは `/keeper` を呼び出し、Keeper 完了後に `/status` から
@@ -124,15 +123,17 @@ us-east-1 の Lambda@Edge 関数発行権限と、CloudFront / IAM / Lambda / Cl
    取得します。
 
 コールバック URL とサインアウト URL には、スタックが出力する CloudFront URL を使用します。
-PWA はその CloudFront origin から `/status`、`/subscriptions`、`/keeper` を呼びます。Cognito
+PWA はその CloudFront origin から `/status`、`/subscriptions`、`/keeper`、
+`/reservation-settings` を呼びます。Cognito
 Hosted UI はログイン画面の表示と PKCE code exchange に使用します。状態 S3 bucket は
 パブリックアクセスをブロックし、CloudFront OAC からのみ読み出せます。`/status` と
-`/subscriptions`、`/keeper` の認証は Lambda@Edge が行い、静的なログイン画面と SPA shell は
+`/subscriptions`、`/keeper`、`/reservation-settings` の認証は Lambda@Edge が行い、静的なログイン画面と SPA shell は
 ログイン前にも配信されます。
 
 ## Dash のローカルテスト
 
-Dash は Google 検索によるグラウンディングを有効にした Gemini Flash で新着本を評価します。
-安全にローカル評価できるよう、REPL は既定で dry-run になっており、本番用とは別の
-ローカル履歴ファイルに書き込みます。実際に予約するには、明示的に dry-run を無効に
-する必要があります。
+Dash は S3 に保存されたユーザーごとの出版社・著者・タイトルキーワード条件を使って
+新着本を照合します。安全にローカル確認できるよう、REPL は既定で dry-run になっており、
+予約条件と履歴は本番とは別のローカルファイルを使います。実際に予約するには、明示的に
+dry-run を無効にする必要があります。詳細は [backend/dash/README.md](./backend/dash/README.md)
+を参照してください。

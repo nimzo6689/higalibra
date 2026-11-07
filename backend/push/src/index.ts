@@ -10,6 +10,7 @@ import type {
 
 export { DynamoDbPushSender } from './sender.js';
 export { DynamoDbSubscriptionStore } from './subscriptions.js';
+export { loadEmailCardNumbers, normalizeEmail } from './email-card-numbers.js';
 export { createPreSignUpHandler, preSignUpHandler } from './pre-signup.js';
 export type {
   FunctionUrlEvent,

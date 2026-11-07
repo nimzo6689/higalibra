@@ -7,6 +7,7 @@ export interface DashConfiguration {
   parameterName: string;
   historyBucket: string;
   historyKey: string;
+  settingsPrefix: string;
   subscriptionsTable: string;
   region?: string;
 }
@@ -19,6 +20,8 @@ export function readDashConfiguration(
     historyBucket: requiredEnvironmentValue(environment, 'DASH_HISTORY_BUCKET'),
     historyKey:
       environment.DASH_HISTORY_KEY?.trim() || 'dash_research_history.json',
+    settingsPrefix:
+      environment.DASH_SETTINGS_PREFIX?.trim() || 'reservation-settings',
     subscriptionsTable: requiredEnvironmentValue(
       environment,
       'SUBSCRIPTIONS_TABLE',
@@ -66,21 +69,9 @@ export function parseDashSecret(value: unknown): DashSecret {
     throw new Error('Dash secret contains duplicate cardNo values.');
   }
 
-  const reservationCardNo = requiredString(
-    value.reservationCardNo,
-    'reservationCardNo',
-  );
-  if (!users.some((user) => user.cardNo === reservationCardNo)) {
-    throw new Error(
-      'Dash reservationCardNo must match one of the configured users.',
-    );
-  }
-
   return {
     baseUrl: requiredString(value.baseUrl, 'baseUrl'),
     users,
-    reservationCardNo,
-    geminiApiKey: requiredString(value.geminiApiKey, 'geminiApiKey'),
     vapid: {
       subject: requiredString(value.vapid.subject, 'vapid.subject'),
       publicKey: requiredString(value.vapid.publicKey, 'vapid.publicKey'),

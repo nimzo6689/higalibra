@@ -5,14 +5,14 @@
 本システムは、東○○市図書館の Web サイト（ELCIELO 製）を HTTP 通信経由で操作し、以下の自動化・視覚化を実現するサーバーレスシステムである。
 
 1. **Keeper (自動延長・状態同期バッチ)**:  
-毎日 1 回、利用者 4 人分の貸出・予約状況を取得してファイルを更新し、返却期限が迫っている書籍を自動延長する。
-また、予約状況が「取置済」、もしくは、返却期限が近づいた書籍がある場合、利用者の Android 端末に Web Push 通知を送信する。
+   毎日 1 回、利用者 4 人分の貸出・予約状況を取得してファイルを更新し、返却期限が迫っている書籍を自動延長する。
+   また、予約状況が「取置済」、もしくは、返却期限が近づいた書籍がある場合、利用者の Android 端末に Web Push 通知を送信する。
 
 2. **Mesh (図書館ダッシュボード PWA Web アプリ)**:
-利用者 4 人分の最新の貸出・予約状況を一覧で確認できる PWA 対応の認証付き Web アプリケーションを提供する。
+   利用者 4 人分の最新の貸出・予約状況を一覧で確認できる PWA 対応の認証付き Web アプリケーションを提供する。
 
-3. **Dash (新着書籍の LLM 自動予約バッチ)**:  
-毎週水曜日に新着書籍を取得し、 LLM を用いて Web 上の受賞歴やレビュー、紹介文などを調査・判定し、条件を満たす書籍を自動予約し、その結果を利用者の Android 端末に Web Push 通知を送信する。
+3. **Dash (新着書籍の条件照合・自動予約バッチ)**:
+   毎週水曜日に新着書籍を取得し、利用者が PWA で設定した出版社・著者・タイトルキーワード条件と照合して、条件を設定した利用者のカード番号で書籍を自動予約し、該当利用者に Web Push 通知を送信する。
 
 ---
 
@@ -25,13 +25,14 @@ graph LR
     OSPush["OS Push Services"]
 
     subgraph AWS ["AWS"]
-        DynamoDB["DynamoDB(購読・調査履歴)"]
-        StatusS3["S3(Status JSON)"]
+        DynamoDB["DynamoDB(購読情報)"]
+        StatusS3["S3(Status JSON・予約設定・履歴)"]
         MeshS3["S3(Mesh SPA)"]
         Cognito["Cognito"]
         CDN["CloudFront"]
         EDGE["Lambda@Edge(JWT検証)"]
         Push["Lambda(Push API)"]
+        SettingsApi["Lambda(予約設定API)"]
 
         subgraph Req1 ["要件1: 自動延長 & 通知バッチ"]
             Scheduler1["EventBridge<br/>(毎日18時実行)"]
@@ -49,10 +50,12 @@ graph LR
             CDN --> EDGE
             EDGE -->|/status 認証済み| StatusS3
             EDGE -->|/subscriptions 検証済み identity| Push
+            EDGE -->|/reservation-settings 検証済み identity| SettingsApi
+            SettingsApi --> StatusS3
             Push --> DynamoDB
         end
 
-        subgraph Req3 ["要件3: LLM自動予約バッチ"]
+        subgraph Req3 ["要件3: 条件照合自動予約バッチ"]
             Scheduler2["EventBridge<br/>(毎週水曜日16時実行)"]
             Job2["Lambda(Dash)"]
             Scheduler2 --> Job2
@@ -91,11 +94,13 @@ graph LR
 - **目的**: 利用者 4 人の状況を一画面で確認でき、ネイティブアプリ感覚でホーム画面から起動・Web Push 通知を受信可能にする。
 - **構成要素**:
   - **フロントエンド**: CloudFront+S3（React による PWA / SPA 配信）
-  - **ユーザー認証**: Cognito Hosted UI でログインし、CloudFront の `/status` と `/subscriptions` behavior に関連付けた Lambda@Edge で ID トークンを検証する。
+  - **ユーザー認証**: Cognito Hosted UI でログインし、CloudFront の `/status`、`/subscriptions`、`/reservation-settings` behavior に関連付けた Lambda@Edge で ID トークンを検証する。
   - **利用状況配信**: CloudFront → Lambda@Edge → OAC → 非公開 StatusBucket(S3)。検証後、`/status` を `user_status.json` に書き換えて配信する。
   - **サブスクリプション登録API**: Lambda(Node.js) + DynamoDB（購読情報の保存）
+  - **予約設定 API**: 認証済み `GET` / `PUT /reservation-settings` Lambda。検証済みメールをカード番号に解決し、ユーザーごとの設定を S3 に保存する。
   - **Push API 経路**: CloudFront → Lambda@Edge（JWT検証・検証済み利用者 claim 付与）→ OAC (`AWS_IAM`) → Push Lambda。ブラウザーから同一 origin を使うため CORS は不要。
   - **ログイン前の配信**: Cognito 認証を開始するため、Mesh の静的 SPA shell は未ログインでも配信する。
+  - **予約設定画面**: 出版社、著者、タイトル（部分一致）の値と、それぞれの項目内で使う AND / OR を設定する。モバイルでは左ドロワーから遷移する。
 - **PWA & Web Push 実装要件**:
   - **Service Worker**: キャッシュ制御およびバックグラウンドでの Push イベント受信・通知ダイアログ表示を担当。
   - **VAPID 認証**: Web Push 標準規格に基づき、Secret Manager に保持した VAPID 秘密鍵を用いて送信リクエストを署名。
@@ -104,27 +109,27 @@ graph LR
     2. ブラウザの `PushManager` 経由で PushSubscription エンドポイントを取得。
     3. API 経由で PushSubscription 情報を DynamoDB（`UserSubscriptions` コレクション）に保存。
 
-### 3.3 要件3: 新着書籍の自動予約
+### 3.3 要件3: 新着書籍の条件照合・自動予約
 
 - **目的**: 新着本の中から好みの書籍を予約し、結果を即座に通知する。
 - **起動トリガー**: EventBridge（毎週水曜日16時に実行）
 - **実行基盤**: Lambda (Node.js)
 - **処理フロー**:
-  1. 新着リストを取得。
-  2. S3 にある調査履歴を参照し、過去に調査済みの書籍をスキップ。
-  3. 各書籍に対して Web Search Tool を実行し、賞やレビュー、紹介文を収集する。
-  4. 検索結果テキストを LLM が解析し、「予約すべきか否か」を判定する。
-  5. LLM の判定結果が「予約すべき」となった書籍に対して、図書館 Web サイトへ予約リクエストを送信する。
-  6. 予約が成功した場合、`push` モジュール経由で通知を PWA 利用者の端末へ即時配信する。
+  1. S3 から利用者ごとの予約条件を取得する。
+  2. 条件が設定された利用者のうち `users` 配列で先頭のカード番号で新着リストを取得する。
+  3. 出版社・著者・タイトルキーワードを利用者ごとに照合する。条件項目どうしは AND、各項目内は設定された AND / OR を使い、タイトルはキーワード部分一致とする。
+  4. 条件に合致した書籍を、予約設定をした利用者のカード番号で予約する。S3 の履歴は利用者・書籍番号単位で重複予約を防止する。
+  5. 予約成功後、該当利用者のカード番号に紐づく端末へ Web Push 通知を送信する。
 
 ---
 
 ## 4. 画面設計
 
 各画面は、利用者 4 人分の貸出・予約状況を一覧で確認できる PWA 対応の認証付き Web アプリケーションとして提供する。
-各画面の遷移はボトムナビゲーションバーで行う。
+各画面の遷移はボトムナビゲーションバーで行い、予約設定はメニュー内に配置する。
 
 ### 4.1. ホーム画面（`/`）
+
 - **概要**: 全利用者の状況サマリを表示
 - **構成要素**:
   - **貸出サマリカード**: 総貸出冊数
@@ -134,6 +139,7 @@ graph LR
   - **クイックナビ**: バーコード表示画面へのショートカット
 
 ### 4.2. 貸出一覧画面（`/borrowed`）
+
 - **概要**: 全利用者の現在借りている書籍一覧
 - **構成要素**:
   - **フィルタ・ソート**: 利用者別絞り込み、返却期限順ソート
@@ -143,6 +149,7 @@ graph LR
     - 貸出日 / 返却期限（期限間近はハイライト表示）
 
 ### 4.3. 予約一覧画面（`/reservations`）
+
 - **概要**: 予約中の書籍一覧と状態の確認
 - **構成要素**:
   - **フィルタ・ソート**: 利用者別絞り込み、状態順（取置済優先）
@@ -152,6 +159,7 @@ graph LR
     - 予約日 / 取置期限（取置済みの場合のみ表示）
 
 ### 4.4. 利用者バーコード表示画面（`/barcode`）
+
 - **概要**: 貸出時に提示する図書館利用証（バーコード）表示
 - **構成要素**:
   - **利用者切り替えタブ/スワイプ**: 利用者の切り替え
@@ -159,50 +167,62 @@ graph LR
   - **利用者情報**: 氏名、カード番号
   - **画面輝度固定機能**: 読み取りしやすいよう画面を明るく保つ注記
 
+### 4.5. 予約設定画面（`/settings`）
+
+- **概要**: 利用者自身の新着書籍予約条件を設定
+- **構成要素**:
+  - 出版社、著者、タイトルキーワードごとの複数値入力
+  - 各項目内の AND / OR 選択。空の項目は照合対象外
+  - `GET` / `PUT /reservation-settings` API 経由の S3 保存
+  - モバイルでは左ドロワーメニューから遷移
+
 ---
 
 ## 5. データ設計
 
-PWA 画面で使用する利用者状況 JSON と調査履歴は S3 に保存する。  
+PWA 画面で使用する利用者状況 JSON、利用者別予約設定、Dash の予約履歴は S3 に保存する。
 Web Push 通知のサブスクリプションは DynamoDB に保存する。
 
 ### 5.1 利用者状況(`user_status.json`) in S3
 
 {
-    "lastUpdated": "<YYYY-MM-DDTHH:MM:SSZ>",
-    "users": [
-        {
-            "cardNo": "<LibraryCardNumber>",
-            "name": "<LibraryUserName>",
-            "borrowedBooks": [
-                {
-                    "barcode": "<BookID>",
-                    "status": "<BookStatus>",
-                    "title": "<BookTitle>",
-                    "author": "<BookAuthor>",
-                    "genre": "<BookGenre>",
-                    "loanDate": "<YYYY-MM-DD>",
-                    "returnDate": "<YYYY-MM-DD>"
-                }
-            ],
-            "reservedBooks": [
-                {
-                    "rank": "<BookID>",
-                    "title": "<BookTitle>",
-                    "reservedOn": "<YYYY-MM-DD>",
-                    "holdExpiresOn": "<YYYY-MM-DD>"
-                }
-            ]
-        }
-    ]
+"lastUpdated": "<YYYY-MM-DDTHH:MM:SSZ>",
+"users": [
+{
+"cardNo": "<LibraryCardNumber>",
+"name": "<LibraryUserName>",
+"borrowedBooks": [
+{
+"barcode": "<BookID>",
+"status": "<BookStatus>",
+"title": "<BookTitle>",
+"author": "<BookAuthor>",
+"genre": "<BookGenre>",
+"loanDate": "<YYYY-MM-DD>",
+"returnDate": "<YYYY-MM-DD>"
 }
-
+],
+"reservedBooks": [
+{
+"rank": "<BookID>",
+"title": "<BookTitle>",
+"reservedOn": "<YYYY-MM-DD>",
+"holdExpiresOn": "<YYYY-MM-DD>"
+}
+]
+}
+]
+}
 
 ### 5.2 Web Push サブスクリプション（`UserSubscriptions` コレクション） in DynamoDB
 
-| ドキュメント ID | 属性 | 用途 |
-| --- | --- | --- |
+| ドキュメント ID                              | 属性                                                                  | 用途                             |
+| -------------------------------------------- | --------------------------------------------------------------------- | -------------------------------- |
 | `USER#<LibraryCardNumber>#DEVICE#<DeviceID>` | `cardNo`, `deviceId`, `endpoint`, `keys`（p256dh, auth）, `updatedAt` | デバイスごとの Web Push 配信宛先 |
+
+### 5.3 新着書籍予約設定 in S3
+
+カード番号ごとに `reservation-settings/<LibraryCardNumber>.json` として保存する。出版社・著者・タイトルキーワード各項目に `operator` (`and` / `or`) と `values` 配列を持つ。設定 API は Cognito ID token の検証とメールアドレスからカード番号への認可済み対応付けを行い、リクエストからカード番号を受け取らない。
 
 ---
 
@@ -212,17 +232,12 @@ Web Push 通知のサブスクリプションは DynamoDB に保存する。
 
 Node.js の `/backend/scraping` パッケージにて実装する。
 
-| command            | Arguments  | 概要                        |
-| ------------------ | ---------- | --------------------------- |
-| `getUserStatus`    | -          | 現在の貸出・予約状況を確認     |
-| `getNewBooks`      | -          | 図書館の新着書籍リストを取得   |
-| `extendLoan`       | `barcode`  | 書籍を延長                   |
-| `reserveBook`      | `book_no`  | 書籍を予約                   |
-
-### 6.2 Web Search Tool
-
-Google AI Studio にて発行する Gemini Flash の API KEY を用いて、Gemini Flash API を呼び出す。  
-@google/genai パッケージを用いて、LLM による Web 検索結果の解析を行い、予約すべき書籍か否かを判定する。
+| command         | Arguments | 概要                         |
+| --------------- | --------- | ---------------------------- |
+| `getUserStatus` | -         | 現在の貸出・予約状況を確認   |
+| `getNewBooks`   | -         | 図書館の新着書籍リストを取得 |
+| `extendLoan`    | `barcode` | 書籍を延長                   |
+| `reserveBook`   | `book_no` | 書籍を予約                   |
 
 ---
 
@@ -232,12 +247,12 @@ Google AI Studio にて発行する Gemini Flash の API KEY を用いて、Gemi
 
 ### 7.1 技術スタック
 
-| レイヤー | 技術 |
-| --- | --- |
+| レイヤー       | 技術                                                                |
+| -------------- | ------------------------------------------------------------------- |
 | フロントエンド | React, TypeScript, Vite, TailwindCSS, PWA, Web Push, Service Worker |
-| バックエンド | Node.js, TypeScript, AWS Lambda, DynamoDB, S3, CloudFront, Cognito |
-| インフラ | AWS CloudFormation, GitHub Actions, NuShell |
-| 外部サービス | | 図書館 Web サイト（ELCIELO）, Google Gemini Flash API |
+| バックエンド   | Node.js, TypeScript, AWS Lambda, DynamoDB, S3, CloudFront, Cognito  |
+| インフラ       | AWS CloudFormation, GitHub Actions, NuShell                         |
+| 外部サービス   | 図書館 Web サイト（ELCIELO）                                        |
 
 ### 7.2 リポジトリ構成
 

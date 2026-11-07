@@ -18,7 +18,6 @@ export default defineConfig({
     rollupOptions: {
       external: [
         /^@aws-sdk\//,
-        '@google/genai',
         '@higalibra/push',
         '@higalibra/scraping',
         'node:fs/promises',

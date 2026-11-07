@@ -1,6 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CircleAlert, LogOut, RefreshCw, ShieldCheck } from 'lucide-react';
-import { executeKeeper, fetchUserStatus } from './api';
+import {
+  CircleAlert,
+  LogOut,
+  Menu,
+  RefreshCw,
+  ShieldCheck,
+  X,
+} from 'lucide-react';
+import {
+  executeKeeper,
+  fetchReservationSettings,
+  fetchUserStatus,
+  updateReservationSettings,
+} from './api';
 import {
   beginLogin,
   completeLogin,
@@ -20,9 +32,10 @@ import { BarcodePage } from './pages/BarcodePage';
 import { BorrowedPage } from './pages/BorrowedPage';
 import { HomePage } from './pages/HomePage';
 import { ReservationsPage } from './pages/ReservationsPage';
+import { SettingsPage } from './pages/SettingsPage';
 import { Brand, LoadingScreen, LoginScreen, Navigation } from './components';
 import { daysUntil, errorMessage, formatDateTime, readRoute } from './utils';
-import type { Route, UserStatusSnapshot } from './types';
+import type { ReservationSettings, Route, UserStatusSnapshot } from './types';
 
 const authConfiguration = getAuthConfiguration();
 
@@ -36,6 +49,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isKeeperRunning, setIsKeeperRunning] = useState(false);
   const [route, setRoute] = useState<Route>(readRoute());
+  const [reservationSettings, setReservationSettings] =
+    useState<ReservationSettings | null>(null);
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  const [settingsMessage, setSettingsMessage] = useState('');
+  const [settingsReloadKey, setSettingsReloadKey] = useState(0);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
   const [pushBusy, setPushBusy] = useState(false);
   const [pushError, setPushError] = useState('');
@@ -147,6 +168,42 @@ export default function App() {
   }, [session, refreshStatus]);
 
   useEffect(() => {
+    if (!session) {
+      setReservationSettings(null);
+      return;
+    }
+
+    const apiUrl = import.meta.env.VITE_RESERVATION_SETTINGS_API_URL?.trim();
+    if (!apiUrl) {
+      setSettingsError('予約設定 API の接続設定がありません。');
+      setSettingsLoading(false);
+      return;
+    }
+
+    let active = true;
+    setSettingsLoading(true);
+    setSettingsError('');
+    fetchReservationSettings(
+      apiUrl,
+      session.idToken,
+      authConfiguration,
+      setSession,
+    )
+      .then((settings) => {
+        if (active) setReservationSettings(settings);
+      })
+      .catch((error: unknown) => {
+        if (active) setSettingsError(errorMessage(error));
+      })
+      .finally(() => {
+        if (active) setSettingsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session, settingsReloadKey]);
+
+  useEffect(() => {
     if (!session || !authConfiguration) return;
 
     let timeout: ReturnType<typeof setTimeout>;
@@ -197,10 +254,20 @@ export default function App() {
   useEffect(() => {
     function onPopState() {
       setRoute(readRoute());
+      setIsDrawerOpen(false);
     }
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
+
+  useEffect(() => {
+    if (!isDrawerOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsDrawerOpen(false);
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    return () => document.removeEventListener('keydown', closeOnEscape);
+  }, [isDrawerOpen]);
 
   useEffect(() => {
     const currentSession = session;
@@ -252,8 +319,42 @@ export default function App() {
       window.history.pushState({}, '', nextRoute);
     }
     setRoute(nextRoute);
+    setIsDrawerOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
+
+  async function saveReservationSettings() {
+    if (!session || !reservationSettings) return;
+    const apiUrl = import.meta.env.VITE_RESERVATION_SETTINGS_API_URL?.trim();
+    if (!apiUrl) {
+      setSettingsError('予約設定 API の接続設定がありません。');
+      return;
+    }
+    setSettingsSaving(true);
+    setSettingsError('');
+    setSettingsMessage('');
+    try {
+      const cleanSettings: ReservationSettings = {
+        publishers: cleanCriterion(reservationSettings.publishers),
+        authors: cleanCriterion(reservationSettings.authors),
+        titleKeywords: cleanCriterion(reservationSettings.titleKeywords),
+      };
+      setReservationSettings(
+        await updateReservationSettings(
+          apiUrl,
+          session.idToken,
+          authConfiguration,
+          setSession,
+          cleanSettings,
+        ),
+      );
+      setSettingsMessage('予約設定を保存しました。');
+    } catch (error) {
+      setSettingsError(errorMessage(error));
+    } finally {
+      setSettingsSaving(false);
+    }
+  }
 
   async function togglePush() {
     if (!session) return;
@@ -268,7 +369,12 @@ export default function App() {
     setPushBusy(true);
     try {
       if (pushEnabled) {
-        await disablePush(apiUrl, session.idToken, authConfiguration, setSession);
+        await disablePush(
+          apiUrl,
+          session.idToken,
+          authConfiguration,
+          setSession,
+        );
         setPushEnabled(false);
         setPushMessage('この端末の通知を解除しました。');
       } else {
@@ -346,6 +452,18 @@ export default function App() {
     );
   }
 
+  function cleanCriterion(
+    criterion: ReservationSettings['publishers'],
+  ): ReservationSettings['publishers'] {
+    const values = criterion.values
+      .map((value) => value.trim())
+      .filter((value) => value.length > 0);
+    if (values.length > 20 || values.some((value) => value.length > 100)) {
+      throw new Error('各項目は20個まで、各値は100文字まで入力できます。');
+    }
+    return { operator: criterion.operator, values };
+  }
+
   return (
     <div className="app-shell">
       <aside className="desktop-sidebar">
@@ -377,9 +495,50 @@ export default function App() {
         </div>
       </aside>
 
+      {isDrawerOpen && (
+        <div className="mobile-drawer-layer">
+          <button
+            type="button"
+            className="mobile-drawer-backdrop"
+            aria-label="メニューを閉じる"
+            onClick={() => setIsDrawerOpen(false)}
+          />
+          <aside
+            className="mobile-drawer"
+            id="mobile-navigation"
+            aria-label="メニュー"
+            aria-modal="true"
+            role="dialog"
+          >
+            <div className="mobile-drawer-heading">
+              <Brand />
+              <button
+                type="button"
+                className="icon-button"
+                aria-label="メニューを閉じる"
+                onClick={() => setIsDrawerOpen(false)}
+              >
+                <X size={19} />
+              </button>
+            </div>
+            <Navigation route={route} onNavigate={changeRoute} />
+          </aside>
+        </div>
+      )}
+
       <div className="main-column">
         <header className="topbar">
           <div className="mobile-brand">
+            <button
+              type="button"
+              className="mobile-menu-button"
+              aria-label="メニューを開く"
+              aria-expanded={isDrawerOpen}
+              aria-controls="mobile-navigation"
+              onClick={() => setIsDrawerOpen(true)}
+            >
+              <Menu size={20} />
+            </button>
             <Brand />
           </div>
           <div className="topbar-right">
@@ -423,7 +582,22 @@ export default function App() {
             </div>
           )}
 
-          {isLoading && !snapshot ? (
+          {route === '/settings' ? (
+            <SettingsPage
+              settings={reservationSettings}
+              isLoading={settingsLoading}
+              isSaving={settingsSaving}
+              error={settingsError}
+              message={settingsMessage}
+              onRetry={() => setSettingsReloadKey((key) => key + 1)}
+              onChange={(settings) => {
+                setReservationSettings(settings);
+                setSettingsError('');
+                setSettingsMessage('');
+              }}
+              onSave={() => void saveReservationSettings()}
+            />
+          ) : isLoading && !snapshot ? (
             <LoadingScreen label="利用状況を読み込んでいます" inline />
           ) : (
             <>
@@ -466,7 +640,7 @@ export default function App() {
       </div>
 
       <div className="mobile-nav-wrap">
-        <Navigation route={route} onNavigate={changeRoute} />
+        <Navigation route={route} onNavigate={changeRoute} hideSettings />
       </div>
     </div>
   );

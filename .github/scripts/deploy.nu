@@ -245,6 +245,7 @@ let frontend_environment = {
   VITE_STATUS_URL: $"($stack_outputs.MeshUrl)status"
   VITE_KEEPER_API_URL: $stack_outputs.MeshUrl
   VITE_PUSH_API_URL: $stack_outputs.MeshUrl
+  VITE_RESERVATION_SETTINGS_API_URL: $stack_outputs.MeshUrl
   VITE_VAPID_PUBLIC_KEY: $env.VAPID_PUBLIC_KEY
 }
 

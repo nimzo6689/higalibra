@@ -328,6 +328,10 @@ button:disabled {
   cursor: pointer;
 }
 
+.mobile-menu-button {
+  display: none;
+}
+
 .mobile-profile,
 .mobile-brand,
 .mobile-nav-wrap {
@@ -957,6 +961,162 @@ p {
 .page-intro .welcome-subtitle {
   margin-top: 4px;
   font-size: 14px;
+}
+
+.settings-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 21px;
+  padding: clamp(18px, 3vw, 29px);
+  border: 1px solid #e8ebe4;
+  border-radius: 17px;
+  background: #fff;
+}
+
+.settings-guidance,
+.settings-loading {
+  margin: 0;
+  color: #78847b;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.settings-criterion {
+  min-width: 0;
+  margin: 0;
+  padding: 18px 0 0;
+  border: 0;
+  border-top: 1px solid #edf0ea;
+}
+
+.settings-criterion legend {
+  padding: 0 9px 0 0;
+  color: #35473a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.settings-criterion > p {
+  margin: 2px 0 13px;
+  color: #929b93;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.settings-operator {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  color: #657368;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.settings-operator select,
+.settings-value-row input {
+  min-height: 40px;
+  border: 1px solid #e1e7de;
+  border-radius: 9px;
+  background: #fff;
+  color: #35473a;
+  font-size: 14px;
+}
+
+.settings-operator select {
+  padding: 7px 10px;
+}
+
+.settings-values {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-value-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-value-row input {
+  width: min(100%, 560px);
+  min-width: 0;
+  padding: 8px 11px;
+}
+
+.settings-value-row input:focus-visible,
+.settings-operator select:focus-visible {
+  outline: 3px solid #9ab99f;
+  outline-offset: 2px;
+}
+
+.settings-remove,
+.settings-add,
+.settings-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.settings-remove {
+  width: 40px;
+  flex: 0 0 auto;
+  border: 1px solid #e8ebe4;
+  background: #fff;
+  color: #88948b;
+}
+
+.settings-add {
+  min-height: 36px;
+  margin-top: 10px;
+  padding: 0 10px;
+  border: 1px solid #dfe8dc;
+  background: #f4f7f1;
+  color: #55775b;
+}
+
+.settings-add:disabled {
+  opacity: 0.55;
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #edf0ea;
+  color: #929b93;
+  font-size: 13px;
+}
+
+.settings-save {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 0;
+  background: var(--green);
+  color: #fff;
+}
+
+.settings-save:disabled {
+  opacity: 0.65;
+}
+
+.settings-feedback {
+  margin: -7px 0 0;
+  color: #55775b;
+  font-size: 14px;
+}
+
+.settings-feedback.is-error {
+  color: #b65344;
 }
 
 .list-toolbar {
@@ -2032,9 +2192,63 @@ p {
     padding: 0 18px;
   }
 
+  .mobile-menu-button {
+    display: grid;
+    width: 34px;
+    height: 34px;
+    flex: 0 0 auto;
+    place-items: center;
+    padding: 0;
+    border: 1px solid #e6e9e2;
+    border-radius: 50%;
+    background: #fff;
+    color: #68766b;
+    cursor: pointer;
+  }
+
   .mobile-brand,
   .mobile-profile {
     display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .mobile-drawer-layer {
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+  }
+
+  .mobile-drawer-backdrop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    background: rgba(25, 39, 29, 0.38);
+    cursor: pointer;
+  }
+
+  .mobile-drawer {
+    position: relative;
+    display: flex;
+    width: min(340px, 88vw);
+    height: 100dvh;
+    flex-direction: column;
+    gap: 27px;
+    padding: 22px 18px;
+    border-right: 1px solid #e8ebe4;
+    background: #fbfcf8;
+    box-shadow: 12px 0 32px rgba(32, 48, 36, 0.12);
+  }
+
+  .mobile-drawer-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .mobile-drawer .navigation {
+    overflow-y: auto;
   }
 
   .mobile-brand .brand-mark {

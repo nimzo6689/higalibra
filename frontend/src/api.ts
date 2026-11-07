@@ -1,6 +1,7 @@
 import type {
   BorrowedBook,
   LibraryUser,
+  ReservationSettings,
   ReservedBook,
   UserStatusSnapshot,
 } from './types';
@@ -14,11 +15,17 @@ export async function fetchUserStatus(
   onSessionRefresh: (session: AuthSession) => void,
   signal?: AbortSignal,
 ): Promise<UserStatusSnapshot> {
-  const response = await fetchWithTokenRefresh(url, {
-    headers: { authorization: `Bearer ${idToken}` },
-    cache: 'no-store',
-    signal,
-  }, configuration, idToken, onSessionRefresh);
+  const response = await fetchWithTokenRefresh(
+    url,
+    {
+      headers: { authorization: `Bearer ${idToken}` },
+      cache: 'no-store',
+      signal,
+    },
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
   if (!response.ok) {
     throw new Error(
       `利用状況を取得できませんでした (HTTP ${response.status})。`,
@@ -45,11 +52,17 @@ export async function executeKeeper(
   configuration: AuthConfiguration | null,
   onSessionRefresh: (session: AuthSession) => void,
 ): Promise<void> {
-  const response = await fetchWithTokenRefresh(new URL('/keeper', apiUrl), {
-    method: 'POST',
-    headers: { authorization: `Bearer ${idToken}` },
-    cache: 'no-store',
-  }, configuration, idToken, onSessionRefresh);
+  const response = await fetchWithTokenRefresh(
+    new URL('/keeper', apiUrl),
+    {
+      method: 'POST',
+      headers: { authorization: `Bearer ${idToken}` },
+      cache: 'no-store',
+    },
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
   if (!response.ok) {
     throw new Error(`Keeper の実行に失敗しました (HTTP ${response.status})。`);
   }
@@ -58,6 +71,78 @@ export async function executeKeeper(
   if (!isRecord(value) || value.success !== true) {
     throw new Error('Keeper の実行に失敗しました。');
   }
+}
+
+export async function fetchReservationSettings(
+  apiUrl: string,
+  idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
+): Promise<ReservationSettings> {
+  const response = await fetchWithTokenRefresh(
+    new URL('/reservation-settings', apiUrl),
+    {
+      headers: { authorization: `Bearer ${idToken}` },
+      cache: 'no-store',
+    },
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
+  if (!response.ok) {
+    throw new Error(
+      `予約設定を取得できませんでした (HTTP ${response.status})。`,
+    );
+  }
+  const value: unknown = await response.json();
+  if (!isRecord(value) || !('settings' in value)) {
+    throw new Error('予約設定データの形式が正しくありません。');
+  }
+  return parseReservationSettings(value.settings);
+}
+
+export async function updateReservationSettings(
+  apiUrl: string,
+  idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
+  settings: ReservationSettings,
+): Promise<ReservationSettings> {
+  const response = await fetchWithTokenRefresh(
+    new URL('/reservation-settings', apiUrl),
+    {
+      method: 'PUT',
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ settings }),
+      cache: 'no-store',
+    },
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
+  if (!response.ok) {
+    let errorDetail: string | null = null;
+    try {
+      const body: unknown = await response.json();
+      if (isRecord(body) && typeof body.error === 'string') {
+        errorDetail = body.error;
+      }
+    } catch {
+      errorDetail = null;
+    }
+    throw new Error(
+      errorDetail ??
+        `予約設定を保存できませんでした (HTTP ${response.status})。`,
+    );
+  }
+  const value: unknown = await response.json();
+  if (!isRecord(value) || !('settings' in value)) {
+    throw new Error('保存した予約設定の形式が正しくありません。');
+  }
+  return parseReservationSettings(value.settings);
 }
 
 function parseUser(value: unknown, index: number): LibraryUser {
@@ -146,6 +231,42 @@ function parseReservedBook(
 
 function optionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
+}
+
+function parseReservationSettings(value: unknown): ReservationSettings {
+  if (!isRecord(value)) {
+    throw new Error('予約設定データの形式が正しくありません。');
+  }
+  return {
+    publishers: parseReservationCriterion(value.publishers),
+    authors: parseReservationCriterion(value.authors),
+    titleKeywords: parseReservationCriterion(value.titleKeywords),
+  };
+}
+
+function parseReservationCriterion(
+  value: unknown,
+): ReservationSettings['publishers'] {
+  if (
+    !isRecord(value) ||
+    (value.operator !== 'and' && value.operator !== 'or') ||
+    !Array.isArray(value.values) ||
+    value.values.length > 20
+  ) {
+    throw new Error('予約条件データの形式が正しくありません。');
+  }
+  const values: string[] = [];
+  for (const item of value.values) {
+    if (
+      typeof item !== 'string' ||
+      item.trim() === '' ||
+      item.trim().length > 100
+    ) {
+      throw new Error('予約条件データの形式が正しくありません。');
+    }
+    values.push(item.trim());
+  }
+  return { operator: value.operator, values };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

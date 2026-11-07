@@ -32,7 +32,8 @@ self.addEventListener('fetch', (event) => {
     request.method !== 'GET' ||
     url.origin !== self.location.origin ||
     url.pathname.startsWith('/oauth2/') ||
-    url.pathname === '/status'
+    url.pathname === '/status' ||
+    url.pathname === '/reservation-settings'
   ) {
     return;
   }
@@ -71,16 +72,13 @@ self.addEventListener('push', (event) => {
   }
 
   event.waitUntil(
-    self.registration.showNotification(
-      notice.title ?? '図書館ダッシュボード',
-      {
-        body: notice.message ?? '図書館の状況が更新されました。',
-        icon: '/icon.svg',
-        badge: '/icon.svg',
-        data: { url: notice.url ?? '/' },
-        tag: notice.type ?? 'library-update',
-      },
-    ),
+    self.registration.showNotification(notice.title ?? '図書館ダッシュボード', {
+      body: notice.message ?? '図書館の状況が更新されました。',
+      icon: '/icon.svg',
+      badge: '/icon.svg',
+      data: { url: notice.url ?? '/' },
+      tag: notice.type ?? 'library-update',
+    }),
   );
 });
 

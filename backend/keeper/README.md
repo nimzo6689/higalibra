@@ -50,16 +50,14 @@ Parameter Store の `SecureString` に、以下の JSON を保存してくださ
     "subject": "mailto:admin@example.com",
     "publicKey": "VAPID公開鍵",
     "privateKey": "VAPID秘密鍵"
-  },
-  "reservationCardNo": "Dash が予約に使うカード番号",
-  "geminiApiKey": "Google AI Studio API key"
+  }
 }
 ```
 
-`reservationCardNo` と `geminiApiKey` は Dash でも使います。Dash は指定した
-`reservationCardNo` のアカウントだけで予約します。PWA で使う利用者 ID と Push
-購読のキーには `cardNo` を使用します。Dash の評価ルールとローカル
-REPL の使い方は [backend/dash/README.md](../dash/README.md) を参照してください。
+PWA で使う利用者 ID と Push 購読のキーには `cardNo` を使用します。Dash は PWA の
+予約設定画面でユーザーごとに保存した条件に一致する書籍を、そのユーザーのカード番号で
+予約します。Dash の設定とローカル REPL の使い方は
+[backend/dash/README.md](../dash/README.md) を参照してください。
 
 DynamoDB の購読項目は `cardNo`, `endpoint`, `keys.p256dh`, `keys.auth` を持つ必要が
 あります。Keeper は `cardNo` で対象項目を Scan します。Lambda 実行ロールには
