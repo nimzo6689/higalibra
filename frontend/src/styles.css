@@ -1815,6 +1815,168 @@ p {
   clip-path: inset(50%);
 }
 
+.install-overlay {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(25, 38, 29, 0.48);
+  backdrop-filter: blur(4px);
+}
+
+.install-dialog {
+  position: relative;
+  width: min(100%, 410px);
+  padding: 34px 30px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(24, 42, 30, 0.24);
+  text-align: center;
+  animation: install-dialog-in 180ms ease-out;
+}
+
+.install-close {
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #78847b;
+  cursor: pointer;
+}
+
+.install-close:hover {
+  background: #f1f3ed;
+}
+
+.install-icon {
+  display: grid;
+  width: 58px;
+  height: 58px;
+  margin: 0 auto 17px;
+  place-items: center;
+  border-radius: 18px;
+  background: #e9efe6;
+  color: var(--green);
+}
+
+.install-eyebrow {
+  margin: 0 0 8px;
+  color: #788b78;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+}
+
+.install-dialog h2 {
+  margin: 0;
+  color: #23332a;
+  font-family: 'Yu Mincho', 'Hiragino Mincho ProN', serif;
+  font-size: 23px;
+}
+
+.install-description {
+  margin: 12px 0 23px;
+  color: #69766c;
+  font-size: 14px;
+  line-height: 1.8;
+}
+
+.install-action {
+  display: flex;
+  width: 100%;
+  min-height: 50px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--green);
+  color: #fff;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  transition: background 150ms ease;
+}
+
+.install-action:hover:not(:disabled) {
+  background: var(--green-dark);
+}
+
+.install-guidance {
+  padding: 14px;
+  border-radius: 13px;
+  background: #f4f6f1;
+  color: #4f6254;
+  text-align: left;
+}
+
+.install-guidance p {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+}
+
+.install-guidance svg {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  color: var(--green);
+}
+
+.install-guidance strong {
+  color: #2b4935;
+}
+
+.install-error {
+  margin: 12px 0 0;
+  color: #a63c32;
+  font-size: 13px;
+  text-align: left;
+}
+
+.install-dismiss {
+  margin-top: 17px;
+  padding: 9px 16px;
+  border: 0;
+  background: transparent;
+  color: #78847b;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.install-dismiss:hover {
+  color: var(--green-dark);
+}
+
+@keyframes install-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-dialog {
+    animation: none;
+  }
+}
+
 @media (min-width: 1500px) {
   .page-content {
     padding-top: 54px;
@@ -1849,6 +2011,10 @@ p {
 }
 
 @media (max-width: 760px) {
+  .install-dialog {
+    padding: 31px 23px 20px;
+  }
+
   .desktop-sidebar {
     display: none;
   }
