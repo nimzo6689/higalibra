@@ -238,7 +238,7 @@ test('forwards only the verified email claim to the Keeper Lambda origin', async
 test('authenticates and forwards the verified email for reservation settings', async () => {
   const handler = createHandler();
   const update = await handler(
-    cloudFrontEvent('/reservation-settings', createToken(), 'PUT', {
+    cloudFrontEvent('/reservation-settings', createToken(), 'POST', {
       'x-authenticated-email': [
         { key: 'X-Authenticated-Email', value: 'forged@example.com' },
       ],
@@ -252,7 +252,7 @@ test('authenticates and forwards the verified email for reservation settings', a
     ),
   );
   const unsupportedMethod = await handler(
-    cloudFrontEvent('/reservation-settings', createToken(), 'POST'),
+    cloudFrontEvent('/reservation-settings', createToken(), 'PUT'),
   );
 
   assert.equal(
@@ -261,7 +261,7 @@ test('authenticates and forwards the verified email for reservation settings', a
   );
   assert.equal(missingEmail.status, '401');
   assert.equal(unsupportedMethod.status, '405');
-  assert.equal(unsupportedMethod.headers.allow[0].value, 'GET, PUT');
+  assert.equal(unsupportedMethod.headers.allow[0].value, 'GET, POST');
 });
 
 test('rejects unsupported routes and methods', async () => {

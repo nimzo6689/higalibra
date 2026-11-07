@@ -111,7 +111,7 @@ export async function updateReservationSettings(
   const response = await fetchWithTokenRefresh(
     new URL('/reservation-settings', apiUrl),
     {
-      method: 'PUT',
+      method: 'POST',
       headers: {
         authorization: `Bearer ${idToken}`,
         'content-type': 'application/json',

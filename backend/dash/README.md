@@ -45,7 +45,7 @@ Gemini API キーや固定の予約カード番号は不要です。
 ```
 
 設定 API は Cognito ID token を Lambda@Edge で検証した同一 CloudFront origin の
-`GET /reservation-settings` と `PUT /reservation-settings` です。Lambda は検証済みメールを
+`GET /reservation-settings` と `POST /reservation-settings` です。Lambda は検証済みメールを
 `ALLOWED_EMAILS_PARAMETER_NAME` の対応表でカード番号に変換し、カード番号を含む
 `reservation-settings/<cardNo>.json` の S3 オブジェクトだけを読み書きします。リクエスト
 からカード番号を指定することはできません。

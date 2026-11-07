@@ -38,9 +38,9 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         });
       }
     } else if (isReservationSettingsRequest) {
-      if (request.method !== 'GET' && request.method !== 'PUT') {
+      if (request.method !== 'GET' && request.method !== 'POST') {
         return errorResponse(405, 'Method not allowed.', {
-          allow: 'GET, PUT',
+          allow: 'GET, POST',
         });
       }
     } else if (request.uri === '/keeper') {

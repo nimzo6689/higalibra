@@ -68,7 +68,7 @@ test('saves validated settings for the authenticated card and ignores client car
   };
 
   const result = await handler(
-    event('PUT', {
+    event('POST', {
       email: 'member@example.com',
       body: JSON.stringify({ cardNo: 'card-999', settings }),
     }),
@@ -85,7 +85,7 @@ test('rejects invalid payloads, limits, and methods', async () => {
   assert.equal(
     (
       await handler(
-        event('PUT', {
+        event('POST', {
           email: 'member@example.com',
           body: '{',
         }),
@@ -96,7 +96,7 @@ test('rejects invalid payloads, limits, and methods', async () => {
   assert.equal(
     (
       await handler(
-        event('PUT', {
+        event('POST', {
           email: 'member@example.com',
           body: JSON.stringify({
             settings: {
@@ -116,7 +116,7 @@ test('rejects invalid payloads, limits, and methods', async () => {
     400,
   );
   assert.equal(
-    (await handler(event('POST', { email: 'member@example.com' }))).statusCode,
+    (await handler(event('PUT', { email: 'member@example.com' }))).statusCode,
     405,
   );
   assert.equal(

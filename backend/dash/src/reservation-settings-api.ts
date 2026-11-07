@@ -40,11 +40,11 @@ export function createReservationSettingsHandler(
     if (path !== '/reservation-settings') {
       return response(404, { error: 'Not found.' });
     }
-    if (method !== 'GET' && method !== 'PUT') {
+    if (method !== 'GET' && method !== 'POST') {
       return response(
         405,
         { error: 'Method not allowed.' },
-        { allow: 'GET, PUT' },
+        { allow: 'GET, POST' },
       );
     }
 

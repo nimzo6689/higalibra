@@ -97,7 +97,7 @@ graph LR
   - **ユーザー認証**: Cognito Hosted UI でログインし、CloudFront の `/status`、`/subscriptions`、`/reservation-settings` behavior に関連付けた Lambda@Edge で ID トークンを検証する。
   - **利用状況配信**: CloudFront → Lambda@Edge → OAC → 非公開 StatusBucket(S3)。検証後、`/status` を `user_status.json` に書き換えて配信する。
   - **サブスクリプション登録API**: Lambda(Node.js) + DynamoDB（購読情報の保存）
-  - **予約設定 API**: 認証済み `GET` / `PUT /reservation-settings` Lambda。検証済みメールをカード番号に解決し、ユーザーごとの設定を S3 に保存する。
+  - **予約設定 API**: 認証済み `GET` / `POST /reservation-settings` Lambda。検証済みメールをカード番号に解決し、ユーザーごとの設定を S3 に保存する。
   - **Push API 経路**: CloudFront → Lambda@Edge（JWT検証・検証済み利用者 claim 付与）→ OAC (`AWS_IAM`) → Push Lambda。ブラウザーから同一 origin を使うため CORS は不要。
   - **ログイン前の配信**: Cognito 認証を開始するため、Mesh の静的 SPA shell は未ログインでも配信する。
   - **予約設定画面**: 出版社、著者、タイトル（部分一致）の値と、それぞれの項目内で使う AND / OR を設定する。モバイルでは左ドロワーから遷移する。
@@ -173,7 +173,7 @@ graph LR
 - **構成要素**:
   - 出版社、著者、タイトルキーワードごとの複数値入力
   - 各項目内の AND / OR 選択。空の項目は照合対象外
-  - `GET` / `PUT /reservation-settings` API 経由の S3 保存
+  - `GET` / `POST /reservation-settings` API 経由の S3 保存
   - モバイルでは左ドロワーメニューから遷移
 
 ---
