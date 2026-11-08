@@ -49,6 +49,8 @@ Gemini API キーや固定の予約カード番号は不要です。
 `ALLOWED_EMAILS_PARAMETER_NAME` の対応表でカード番号に変換し、カード番号を含む
 `reservation-settings/<cardNo>.json` の S3 オブジェクトだけを読み書きします。リクエスト
 からカード番号を指定することはできません。
+POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudFront の OAC 署名に
+使用します。このヘッダーは CloudFront の API origin request policy で転送します。
 
 設定オブジェクトの例:
 

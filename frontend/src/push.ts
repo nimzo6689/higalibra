@@ -1,5 +1,6 @@
 import { fetchWithTokenRefresh } from './auth';
 import type { AuthConfiguration, AuthSession } from './auth';
+import { sha256Hex } from './sha256';
 
 const DEVICE_ID_STORAGE_KEY = 'mesh.push-device-id';
 
@@ -154,16 +155,6 @@ async function readApiResponse(
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-async function sha256Hex(value: string): Promise<string> {
-  const digest = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(value),
-  );
-  return Array.from(new Uint8Array(digest), (byte) =>
-    byte.toString(16).padStart(2, '0'),
-  ).join('');
 }
 
 function decodeVapidKey(key: string): Uint8Array<ArrayBuffer> {

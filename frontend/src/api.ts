@@ -7,6 +7,7 @@ import type {
 } from './types';
 import { fetchWithTokenRefresh } from './auth';
 import type { AuthConfiguration, AuthSession } from './auth';
+import { sha256Hex } from './sha256';
 
 export async function fetchUserStatus(
   url: string,
@@ -108,15 +109,17 @@ export async function updateReservationSettings(
   onSessionRefresh: (session: AuthSession) => void,
   settings: ReservationSettings,
 ): Promise<ReservationSettings> {
+  const body = JSON.stringify({ settings });
   const response = await fetchWithTokenRefresh(
     new URL('/reservation-settings', apiUrl),
     {
       method: 'POST',
       headers: {
         authorization: `Bearer ${idToken}`,
+        'x-amz-content-sha256': await sha256Hex(body),
         'content-type': 'application/json',
       },
-      body: JSON.stringify({ settings }),
+      body,
       cache: 'no-store',
     },
     configuration,
