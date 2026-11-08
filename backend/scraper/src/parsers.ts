@@ -23,6 +23,8 @@ export function parseUserStatus(html: Buffer): UserStatus {
       const statusCells = $(borrowedRows[index * 2 + 1]).children('td');
       return {
         status: parseEnum<BorrowedBookStatus>(
+          // 「再貸出」の場合は statusCells.eq(1) が空文字となるため、
+          // cells.eq(1) の「再貸出」を取得する必要がある
           (cellText(statusCells.eq(1)) || cellText(cells.eq(1))).replace(
             /\s+/g,
             '',
