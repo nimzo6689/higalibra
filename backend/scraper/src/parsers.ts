@@ -23,7 +23,10 @@ export function parseUserStatus(html: Buffer): UserStatus {
       const statusCells = $(borrowedRows[index * 2 + 1]).children('td');
       return {
         status: parseEnum<BorrowedBookStatus>(
-          cellText(statusCells.eq(1)).replace(/\s+/g, ''),
+          (cellText(statusCells.eq(1)) || cellText(cells.eq(1))).replace(
+            /\s+/g,
+            '',
+          ),
           [
             '更新回数に達しました。',
             '再貸出',

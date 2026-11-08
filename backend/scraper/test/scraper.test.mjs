@@ -17,6 +17,11 @@ test('getUserStatus caches cover image URLs by book title', async () => {
         <td>一般</td><td>barcode-1</td><td></td><td>2026/10/01</td><td>2026/10/31</td>
       </tr>
       <tr><td></td><td>まだ更新できません</td></tr>
+      <tr>
+        <td></td><td>再貸出</td><td>再貸出の本</td>
+        <td>一般</td><td>barcode-2</td><td></td><td>2026/10/02</td><td>2026/11/01</td>
+      </tr>
+      <tr><td></td><td></td></tr>
     </table></div>
     <div id="ContentRsv"><table class="el-table-bordered">
       <tr><th>rank</th></tr>
@@ -78,6 +83,7 @@ test('getUserStatus caches cover image URLs by book title', async () => {
       'https://affiliate.example/covers/borrowed.jpg',
     );
     assert.equal(status.borrowedBooks[0].status, 'まだ更新できません');
+    assert.equal(status.borrowedBooks[1].status, '再貸出');
     assert.equal(
       status.reservedBooks[0].imageUrl,
       'https://affiliate.example/covers/reserved.jpg',
@@ -97,8 +103,10 @@ test('getUserStatus caches cover image URLs by book title', async () => {
 
     assert.deepEqual(cacheGets, [
       '借りた本',
+      '再貸出の本',
       '予約した本',
       '借りた本',
+      '再貸出の本',
       '予約した本',
     ]);
     assert.equal(
