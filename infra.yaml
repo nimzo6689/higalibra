@@ -220,7 +220,6 @@ Resources:
           HeaderBehavior: whitelist
           Headers:
             - content-type
-            - x-amz-content-sha256
             - x-authenticated-email
         CookiesConfig:
           CookieBehavior: none
