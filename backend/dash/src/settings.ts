@@ -1,24 +1,48 @@
 import type { NewBook } from '@higalibra/scraping';
 
 export type MatchOperator = 'and' | 'or';
+export type ReservationField = 'publishers' | 'authors' | 'titleKeywords';
 
-export interface ReservationCriterion {
-  operator: MatchOperator;
+export interface ReservationRule {
+  type: 'rule';
+  id: string;
+  field: ReservationField;
+  join: MatchOperator;
+  negate: boolean;
+  valueOperator: MatchOperator;
   values: string[];
 }
 
+export interface ReservationGroupNode {
+  type: 'group';
+  id: string;
+  join: MatchOperator;
+  children: ReservationExpressionNode[];
+}
+
+export type ReservationExpressionNode = ReservationRule | ReservationGroupNode;
+
+export interface ReservationExpression {
+  children: ReservationExpressionNode[];
+}
+
 export interface ReservationSettings {
-  publishers: ReservationCriterion;
-  authors: ReservationCriterion;
-  titleKeywords: ReservationCriterion;
+  expression: ReservationExpression;
 }
 
 export const EMPTY_RESERVATION_SETTINGS: ReservationSettings = {
-  publishers: { operator: 'or', values: [] },
-  authors: { operator: 'or', values: [] },
-  titleKeywords: { operator: 'or', values: [] },
+  expression: { children: [] },
 };
 
+const MAX_RULES = 60;
+const MAX_GROUP_DEPTH = 3;
+const MAX_VALUES_PER_RULE = 20;
+const MAX_VALUE_LENGTH = 100;
+const reservationFields: ReservationField[] = [
+  'publishers',
+  'authors',
+  'titleKeywords',
+];
 export function reservationSettingsObjectKey(
   prefix: string,
   cardNo: string,
@@ -26,28 +50,23 @@ export function reservationSettingsObjectKey(
   return `${prefix}/${encodeURIComponent(cardNo)}.json`;
 }
 
-const MAX_VALUES_PER_CRITERION = 20;
-const MAX_VALUE_LENGTH = 100;
-
 export function parseReservationSettings(value: unknown): ReservationSettings {
   if (!isRecord(value)) {
     throw new Error('Reservation settings must be a JSON object.');
   }
-  return {
-    publishers: parseCriterion(value.publishers, 'publishers'),
-    authors: parseCriterion(value.authors, 'authors'),
-    titleKeywords: parseCriterion(value.titleKeywords, 'titleKeywords'),
-  };
+  if ('expression' in value) {
+    return {
+      expression: parseExpression(value.expression),
+    };
+  }
+
+  return { expression: { children: parseLegacySettings(value) } };
 }
 
 export function hasActiveReservationSettings(
   settings: ReservationSettings,
 ): boolean {
-  return (
-    settings.publishers.values.length > 0 ||
-    settings.authors.values.length > 0 ||
-    settings.titleKeywords.values.length > 0
-  );
+  return hasActiveChildren(settings.expression.children);
 }
 
 export function matchesReservationSettings(
@@ -55,60 +74,239 @@ export function matchesReservationSettings(
   settings: ReservationSettings,
 ): boolean {
   if (!hasActiveReservationSettings(settings)) return false;
-  return (
-    matchesCriterion(book.publisher, settings.publishers, false) &&
-    matchesCriterion(book.author, settings.authors, false) &&
-    matchesCriterion(book.title, settings.titleKeywords, true)
-  );
+  return evaluateChildren(settings.expression.children, book);
 }
 
-function matchesCriterion(
-  actualValue: string,
-  criterion: ReservationCriterion,
-  substring: boolean,
-): boolean {
-  if (criterion.values.length === 0) return true;
-  const actual = normalize(actualValue);
-  const valueMatches = criterion.values.map((value) => {
-    const expected = normalize(value);
-    return substring ? actual.includes(expected) : actual === expected;
+function parseExpression(value: unknown): ReservationExpression {
+  if (!isRecord(value) || !Array.isArray(value.children)) {
+    throw new Error('Reservation settings expression must include children.');
+  }
+  const state = { ids: new Set<string>(), ruleCount: 0 };
+  return {
+    children: parseChildren(value.children, 0, state, 'expression'),
+  };
+}
+
+function parseChildren(
+  children: unknown[],
+  groupDepth: number,
+  state: { ids: Set<string>; ruleCount: number },
+  name: string,
+): ReservationExpressionNode[] {
+  return children.flatMap((child, index): ReservationExpressionNode[] => {
+    const childName = `${name} condition ${index + 1}`;
+    if (!isRecord(child)) {
+      throw new Error(`Reservation setting ${childName} must be an object.`);
+    }
+    if (child.type === 'rule') {
+      state.ruleCount += 1;
+      if (state.ruleCount > MAX_RULES) {
+        throw new Error(
+          `Reservation settings support at most ${MAX_RULES} conditions.`,
+        );
+      }
+      const rule = parseRule(child, childName, state.ids);
+      return rule.values.length > 0 ? [rule] : [];
+    }
+    if (child.type !== 'group') {
+      throw new Error(`Reservation setting ${childName} has an invalid type.`);
+    }
+    if (groupDepth >= MAX_GROUP_DEPTH) {
+      throw new Error(
+        `Reservation settings support at most ${MAX_GROUP_DEPTH} nested groups.`,
+      );
+    }
+    const id = parseId(child.id, childName, state.ids);
+    const join = parseOperator(child.join, `${childName} join`);
+    if (!Array.isArray(child.children)) {
+      throw new Error(
+        `Reservation setting ${childName} must include children.`,
+      );
+    }
+    const nestedChildren = parseChildren(
+      child.children,
+      groupDepth + 1,
+      state,
+      childName,
+    );
+    return nestedChildren.length > 0
+      ? [{ type: 'group', id, join, children: nestedChildren }]
+      : [];
   });
-  return criterion.operator === 'and'
-    ? valueMatches.every(Boolean)
-    : valueMatches.some(Boolean);
 }
 
-function parseCriterion(value: unknown, name: string): ReservationCriterion {
-  if (!isRecord(value) || !Array.isArray(value.values)) {
+function parseRule(
+  value: Record<string, unknown>,
+  name: string,
+  ids: Set<string>,
+): ReservationRule {
+  const id = parseId(value.id, name, ids);
+  if (!isReservationField(value.field)) {
+    throw new Error(`Reservation setting ${name} has an invalid field.`);
+  }
+  if (typeof value.negate !== 'boolean') {
+    throw new Error(`Reservation setting ${name} has an invalid NOT setting.`);
+  }
+  if (!Array.isArray(value.values)) {
     throw new Error(`Reservation setting ${name} must include a values array.`);
   }
-  if (value.operator !== 'and' && value.operator !== 'or') {
-    throw new Error(`Reservation setting ${name} has an invalid operator.`);
-  }
-  if (value.values.length > MAX_VALUES_PER_CRITERION) {
+  if (value.values.length > MAX_VALUES_PER_RULE) {
     throw new Error(
-      `Reservation setting ${name} supports at most ${MAX_VALUES_PER_CRITERION} values.`,
+      `Reservation setting ${name} supports at most ${MAX_VALUES_PER_RULE} keywords.`,
     );
   }
   const values = value.values.map((item, index) => {
     if (typeof item !== 'string') {
       throw new Error(
-        `Reservation setting ${name} value ${index + 1} must be a string.`,
+        `Reservation setting ${name} keyword ${index + 1} must be a string.`,
       );
     }
     const trimmed = item.trim();
     if (!trimmed || trimmed.length > MAX_VALUE_LENGTH) {
       throw new Error(
-        `Reservation setting ${name} values must contain 1-${MAX_VALUE_LENGTH} characters.`,
+        `Reservation setting ${name} keywords must contain 1-${MAX_VALUE_LENGTH} characters.`,
       );
     }
     return trimmed;
   });
-  return { operator: value.operator, values };
+  return {
+    type: 'rule',
+    id,
+    field: value.field,
+    join: parseOperator(value.join, `${name} join`),
+    negate: value.negate,
+    valueOperator: parseOperator(
+      value.valueOperator,
+      `${name} keyword operator`,
+    ),
+    values,
+  };
+}
+
+function parseLegacySettings(
+  value: Record<string, unknown>,
+): ReservationRule[] {
+  const result: ReservationRule[] = [];
+  for (const field of reservationFields) {
+    const criterion = value[field];
+    if (!isRecord(criterion) || !Array.isArray(criterion.values)) {
+      throw new Error(
+        `Reservation setting ${field} must include a values array.`,
+      );
+    }
+    const valueOperator = parseOperator(
+      criterion.operator,
+      `${field} operator`,
+    );
+    if (criterion.values.length > MAX_VALUES_PER_RULE) {
+      throw new Error(
+        `Reservation setting ${field} supports at most ${MAX_VALUES_PER_RULE} values.`,
+      );
+    }
+    const values = criterion.values.map((item, index) => {
+      if (typeof item !== 'string') {
+        throw new Error(
+          `Reservation setting ${field} value ${index + 1} must be a string.`,
+        );
+      }
+      const trimmed = item.trim();
+      if (!trimmed || trimmed.length > MAX_VALUE_LENGTH) {
+        throw new Error(
+          `Reservation setting ${field} values must contain 1-${MAX_VALUE_LENGTH} characters.`,
+        );
+      }
+      return trimmed;
+    });
+    if (values.length > 0) {
+      result.push({
+        type: 'rule',
+        id: `legacy-${field}`,
+        field,
+        join: 'and',
+        negate: false,
+        valueOperator,
+        values,
+      });
+    }
+  }
+  return result;
+}
+
+function parseId(value: unknown, name: string, ids: Set<string>): string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 100) {
+    throw new Error(`Reservation setting ${name} has an invalid id.`);
+  }
+  if (ids.has(value)) {
+    throw new Error(`Reservation setting ${name} has a duplicate id.`);
+  }
+  ids.add(value);
+  return value;
+}
+
+function parseOperator(value: unknown, name: string): MatchOperator {
+  if (value !== 'and' && value !== 'or') {
+    throw new Error(`Reservation setting ${name} has an invalid operator.`);
+  }
+  return value;
+}
+
+function evaluateChildren(
+  children: ReservationExpressionNode[],
+  book: NewBook,
+): boolean {
+  if (children.length === 0) return false;
+  let completedOrSegments = false;
+  let andSegment = evaluateNode(children[0], book);
+  for (const child of children.slice(1)) {
+    const value = evaluateNode(child, book);
+    if (child.join === 'or') {
+      completedOrSegments = completedOrSegments || andSegment;
+      andSegment = value;
+    } else {
+      andSegment = andSegment && value;
+    }
+  }
+  return completedOrSegments || andSegment;
+}
+
+function evaluateNode(node: ReservationExpressionNode, book: NewBook): boolean {
+  if (node.type === 'group') return evaluateChildren(node.children, book);
+  const actualValue =
+    node.field === 'publishers'
+      ? book.publisher
+      : node.field === 'authors'
+        ? book.author
+        : book.title;
+  const actual = normalize(actualValue);
+  const matches = node.values.map((value) => {
+    const expected = normalize(value);
+    return node.field === 'titleKeywords'
+      ? actual.includes(expected)
+      : actual === expected;
+  });
+  const result =
+    node.valueOperator === 'and'
+      ? matches.every(Boolean)
+      : matches.some(Boolean);
+  return node.negate ? !result : result;
+}
+
+function hasActiveChildren(children: ReservationExpressionNode[]): boolean {
+  return children.some((node) =>
+    node.type === 'group'
+      ? hasActiveChildren(node.children)
+      : node.values.length > 0,
+  );
 }
 
 function normalize(value: string): string {
   return value.trim().toLocaleLowerCase('ja-JP');
+}
+
+function isReservationField(value: unknown): value is ReservationField {
+  return (
+    value === 'publishers' || value === 'authors' || value === 'titleKeywords'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

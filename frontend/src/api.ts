@@ -1,6 +1,9 @@
 import type {
   BorrowedBook,
   LibraryUser,
+  ReservationExpressionNode,
+  ReservationField,
+  ReservationRule,
   ReservationSettings,
   ReservedBook,
   UserStatusSnapshot,
@@ -240,36 +243,151 @@ function parseReservationSettings(value: unknown): ReservationSettings {
   if (!isRecord(value)) {
     throw new Error('予約設定データの形式が正しくありません。');
   }
+  if ('expression' in value) {
+    return { expression: parseReservationExpression(value.expression) };
+  }
+  return { expression: { children: parseLegacyReservationSettings(value) } };
+}
+
+function parseReservationExpression(value: unknown): {
+  children: ReservationExpressionNode[];
+} {
+  if (!isRecord(value) || !Array.isArray(value.children)) {
+    throw new Error('予約設定データの形式が正しくありません。');
+  }
+  const ids = new Set<string>();
+  const state = { ids, rules: 0 };
   return {
-    publishers: parseReservationCriterion(value.publishers),
-    authors: parseReservationCriterion(value.authors),
-    titleKeywords: parseReservationCriterion(value.titleKeywords),
+    children: parseReservationNodes(value.children, 0, state),
   };
 }
 
-function parseReservationCriterion(
-  value: unknown,
-): ReservationSettings['publishers'] {
-  if (
-    !isRecord(value) ||
-    (value.operator !== 'and' && value.operator !== 'or') ||
-    !Array.isArray(value.values) ||
-    value.values.length > 20
-  ) {
-    throw new Error('予約条件データの形式が正しくありません。');
-  }
-  const values: string[] = [];
-  for (const item of value.values) {
+function parseReservationNodes(
+  nodes: unknown[],
+  groupDepth: number,
+  state: { ids: Set<string>; rules: number },
+): ReservationExpressionNode[] {
+  return nodes.flatMap((node): ReservationExpressionNode[] => {
     if (
-      typeof item !== 'string' ||
-      item.trim() === '' ||
-      item.trim().length > 100
+      !isRecord(node) ||
+      typeof node.id !== 'string' ||
+      node.id.length === 0 ||
+      node.id.length > 100
     ) {
       throw new Error('予約条件データの形式が正しくありません。');
     }
-    values.push(item.trim());
-  }
-  return { operator: value.operator, values };
+    if (state.ids.has(node.id)) {
+      throw new Error('予約条件データの形式が正しくありません。');
+    }
+    state.ids.add(node.id);
+    if (node.type === 'group') {
+      if (
+        groupDepth >= 3 ||
+        !isMatchOperator(node.join) ||
+        !Array.isArray(node.children)
+      ) {
+        throw new Error('予約条件データの形式が正しくありません。');
+      }
+      const children = parseReservationNodes(
+        node.children,
+        groupDepth + 1,
+        state,
+      );
+      return children.length
+        ? [{ type: 'group', id: node.id, join: node.join, children }]
+        : [];
+    }
+    if (
+      node.type !== 'rule' ||
+      typeof node.field !== 'string' ||
+      !isReservationField(node.field) ||
+      !isMatchOperator(node.join) ||
+      !isMatchOperator(node.valueOperator) ||
+      typeof node.negate !== 'boolean' ||
+      !Array.isArray(node.values)
+    ) {
+      throw new Error('予約条件データの形式が正しくありません。');
+    }
+    state.rules += 1;
+    if (state.rules > 60 || node.values.length > 20) {
+      throw new Error('予約条件データの形式が正しくありません。');
+    }
+    const values: string[] = [];
+    for (const item of node.values) {
+      if (
+        typeof item !== 'string' ||
+        item.trim() === '' ||
+        item.trim().length > 100
+      ) {
+        throw new Error('予約条件データの形式が正しくありません。');
+      }
+      values.push(item.trim());
+    }
+    return values.length
+      ? [
+          {
+            type: 'rule',
+            id: node.id,
+            field: node.field,
+            join: node.join,
+            negate: node.negate,
+            valueOperator: node.valueOperator,
+            values,
+          },
+        ]
+      : [];
+  });
+}
+
+function parseLegacyReservationSettings(
+  value: Record<string, unknown>,
+): ReservationRule[] {
+  const fields: ReservationField[] = ['publishers', 'authors', 'titleKeywords'];
+  return fields.flatMap((field) => {
+    const criterion = value[field];
+    if (
+      !isRecord(criterion) ||
+      !isMatchOperator(criterion.operator) ||
+      !Array.isArray(criterion.values) ||
+      criterion.values.length > 20
+    ) {
+      throw new Error('予約条件データの形式が正しくありません。');
+    }
+    const values: string[] = [];
+    for (const item of criterion.values) {
+      if (
+        typeof item !== 'string' ||
+        item.trim() === '' ||
+        item.trim().length > 100
+      ) {
+        throw new Error('予約条件データの形式が正しくありません。');
+      }
+      values.push(item.trim());
+    }
+    return values.length
+      ? [
+          {
+            type: 'rule',
+            id: `legacy-${field}`,
+            field,
+            join: 'and',
+            negate: false,
+            valueOperator: criterion.operator,
+            values,
+          },
+        ]
+      : [];
+  });
+}
+
+function isMatchOperator(value: unknown): value is 'and' | 'or' {
+  return value === 'and' || value === 'or';
+}
+
+function isReservationField(value: string): value is ReservationField {
+  return (
+    value === 'publishers' || value === 'authors' || value === 'titleKeywords'
+  );
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

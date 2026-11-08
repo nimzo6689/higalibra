@@ -35,9 +35,51 @@ import { ReservationsPage } from './pages/ReservationsPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { Brand, LoadingScreen, LoginScreen, Navigation } from './components';
 import { daysUntil, errorMessage, formatDateTime, readRoute } from './utils';
-import type { ReservationSettings, Route, UserStatusSnapshot } from './types';
+import type {
+  ReservationExpressionNode,
+  ReservationSettings,
+  Route,
+  UserStatusSnapshot,
+} from './types';
 
 const authConfiguration = getAuthConfiguration();
+
+function cleanReservationSettings(
+  settings: ReservationSettings,
+): ReservationSettings {
+  let ruleCount = 0;
+  function cleanNodes(
+    nodes: ReservationExpressionNode[],
+    groupDepth: number,
+  ): ReservationExpressionNode[] {
+    return nodes.flatMap((node): ReservationExpressionNode[] => {
+      if (node.type === 'group') {
+        if (groupDepth >= 3) {
+          throw new Error('グループは3階層まで追加できます。');
+        }
+        const children = cleanNodes(node.children, groupDepth + 1);
+        return children.length ? [{ ...node, children }] : [];
+      }
+      const values = node.values.map((value) => value.trim()).filter(Boolean);
+      if (values.length > 20 || values.some((value) => value.length > 100)) {
+        throw new Error(
+          '各条件のキーワードは20個まで、各キーワードは100文字までです。',
+        );
+      }
+      if (values.length === 0) return [];
+      ruleCount += 1;
+      if (ruleCount > 60) {
+        throw new Error('予約条件は最大60件まで設定できます。');
+      }
+      return [{ ...node, values }];
+    });
+  }
+  return {
+    expression: {
+      children: cleanNodes(settings.expression.children, 0),
+    },
+  };
+}
 
 export default function App() {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -334,11 +376,7 @@ export default function App() {
     setSettingsError('');
     setSettingsMessage('');
     try {
-      const cleanSettings: ReservationSettings = {
-        publishers: cleanCriterion(reservationSettings.publishers),
-        authors: cleanCriterion(reservationSettings.authors),
-        titleKeywords: cleanCriterion(reservationSettings.titleKeywords),
-      };
+      const cleanSettings = cleanReservationSettings(reservationSettings);
       setReservationSettings(
         await updateReservationSettings(
           apiUrl,
@@ -450,18 +488,6 @@ export default function App() {
         }}
       />
     );
-  }
-
-  function cleanCriterion(
-    criterion: ReservationSettings['publishers'],
-  ): ReservationSettings['publishers'] {
-    const values = criterion.values
-      .map((value) => value.trim())
-      .filter((value) => value.length > 0);
-    if (values.length > 20 || values.some((value) => value.length > 100)) {
-      throw new Error('各項目は20個まで、各値は100文字まで入力できます。');
-    }
-    return { operator: criterion.operator, values };
   }
 
   return (

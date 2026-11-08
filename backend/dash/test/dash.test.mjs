@@ -3,6 +3,7 @@ import test from 'node:test';
 import {
   matchesReservationSettings,
   parseDashSecret,
+  parseReservationSettings,
   parseResearchHistory,
   runDash,
 } from '../dist/index.js';
@@ -43,26 +44,34 @@ const books = [
   },
 ];
 
+function rule(id, field, values, options = {}) {
+  return {
+    type: 'rule',
+    id,
+    field,
+    join: options.join ?? 'and',
+    negate: options.negate ?? false,
+    valueOperator: options.valueOperator ?? 'or',
+    values,
+  };
+}
+
 const settings = {
   'card-1': {
-    publishers: { operator: 'or', values: ['Publisher', 'Other'] },
-    authors: { operator: 'or', values: [] },
-    titleKeywords: { operator: 'or', values: [] },
+    expression: {
+      children: [rule('publisher-1', 'publishers', ['Publisher', 'Other'])],
+    },
   },
   'card-2': {
-    publishers: { operator: 'or', values: [] },
-    authors: { operator: 'and', values: ['Writer'] },
-    titleKeywords: { operator: 'or', values: [] },
+    expression: { children: [rule('author-1', 'authors', ['Writer'])] },
   },
   'card-3': {
-    publishers: { operator: 'or', values: [] },
-    authors: { operator: 'or', values: [] },
-    titleKeywords: { operator: 'or', values: [] },
+    expression: { children: [] },
   },
   'card-4': {
-    publishers: { operator: 'or', values: [] },
-    authors: { operator: 'or', values: [] },
-    titleKeywords: { operator: 'or', values: ['mMeNdEd'] },
+    expression: {
+      children: [rule('title-1', 'titleKeywords', ['mMeNdEd'])],
+    },
   },
 };
 
@@ -136,7 +145,7 @@ test('parses four user accounts without Gemini or a fixed reservation account', 
   assert.equal('reservationCardNo' in parsed, false);
 });
 
-test('matches each populated field with its operator and title substrings', () => {
+test('matches conditions, keyword operators, and title substrings', () => {
   const book = {
     ...books[0],
     title: 'A RECOMMENDED story',
@@ -145,27 +154,111 @@ test('matches each populated field with its operator and title substrings', () =
   };
   assert.equal(
     matchesReservationSettings(book, {
-      publishers: { operator: 'or', values: ['Elsewhere', 'Publisher'] },
-      authors: { operator: 'and', values: ['Author', 'author'] },
-      titleKeywords: { operator: 'and', values: ['recommended', 'STORY'] },
+      expression: {
+        children: [
+          rule('publisher', 'publishers', ['Elsewhere', 'Publisher']),
+          rule('author', 'authors', ['Author', 'author'], {
+            valueOperator: 'and',
+          }),
+          rule('title', 'titleKeywords', ['recommended', 'STORY'], {
+            valueOperator: 'and',
+          }),
+        ],
+      },
     }),
     true,
   );
   assert.equal(
     matchesReservationSettings(book, {
-      publishers: { operator: 'and', values: ['Publisher', 'Elsewhere'] },
-      authors: { operator: 'or', values: [] },
-      titleKeywords: { operator: 'or', values: [] },
+      expression: {
+        children: [
+          rule('publisher', 'publishers', ['Publisher', 'Elsewhere'], {
+            valueOperator: 'and',
+          }),
+        ],
+      },
     }),
     false,
   );
   assert.equal(
     matchesReservationSettings(book, {
-      publishers: { operator: 'or', values: [] },
-      authors: { operator: 'or', values: [] },
-      titleKeywords: { operator: 'or', values: [] },
+      expression: { children: [] },
     }),
     false,
+  );
+});
+
+test('applies NOT, AND-before-OR precedence, and nested groups', () => {
+  const book = { ...books[0], title: 'Novel', author: 'Writer' };
+  const a = rule('a', 'publishers', ['Publisher']);
+  const b = rule('b', 'authors', ['Other'], { join: 'or' });
+  const c = rule('c', 'titleKeywords', ['missing'], { join: 'and' });
+
+  assert.equal(
+    matchesReservationSettings(book, {
+      expression: { children: [a, b, c] },
+    }),
+    true,
+  );
+  assert.equal(
+    matchesReservationSettings(book, {
+      expression: {
+        children: [
+          {
+            type: 'group',
+            id: 'group-1',
+            join: 'and',
+            children: [a, b],
+          },
+          c,
+        ],
+      },
+    }),
+    false,
+  );
+  assert.equal(
+    matchesReservationSettings(book, {
+      expression: {
+        children: [
+          rule('not-publisher', 'publishers', ['Publisher'], {
+            negate: true,
+          }),
+        ],
+      },
+    }),
+    false,
+  );
+});
+
+test('converts saved legacy criteria to an equivalent expression', () => {
+  const migrated = parseReservationSettings({
+    publishers: { operator: 'or', values: ['Publisher', 'Other'] },
+    authors: { operator: 'and', values: [] },
+    titleKeywords: { operator: 'or', values: [] },
+  });
+
+  assert.deepEqual(migrated.expression.children, [
+    rule('legacy-publishers', 'publishers', ['Publisher', 'Other']),
+  ]);
+});
+
+test('limits expression nesting to three groups', () => {
+  const nested = (depth) =>
+    depth === 0
+      ? rule('rule-1', 'authors', ['Writer'])
+      : {
+          type: 'group',
+          id: `group-${depth}`,
+          join: 'and',
+          children: [nested(depth - 1)],
+        };
+
+  assert.doesNotThrow(() =>
+    parseReservationSettings({ expression: { children: [nested(3)] } }),
+  );
+  assert.throws(
+    () => parseReservationSettings({ expression: { children: [nested(4)] } }),
+    /at most 3 nested groups/,
   );
 });
 

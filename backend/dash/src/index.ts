@@ -46,7 +46,11 @@ export type {
 } from './types.js';
 export type {
   MatchOperator,
-  ReservationCriterion,
+  ReservationExpression,
+  ReservationExpressionNode,
+  ReservationField,
+  ReservationGroupNode,
+  ReservationRule,
   ReservationSettings,
 } from './settings.js';
 

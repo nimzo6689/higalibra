@@ -3,10 +3,20 @@ import test from 'node:test';
 import { createReservationSettingsHandler } from '../dist/index.js';
 
 const emptySettings = {
-  publishers: { operator: 'or', values: [] },
-  authors: { operator: 'or', values: [] },
-  titleKeywords: { operator: 'or', values: [] },
+  expression: { children: [] },
 };
+
+function rule(id, field, values, join = 'and') {
+  return {
+    type: 'rule',
+    id,
+    field,
+    join,
+    negate: false,
+    valueOperator: 'or',
+    values,
+  };
+}
 
 function makeHandler() {
   const state = { settings: new Map(), writes: [] };
@@ -47,24 +57,29 @@ test('requires a verified email forwarded by the authorizer', async () => {
 test('loads only the settings associated with the authenticated card', async () => {
   const { handler, state } = makeHandler();
   state.settings.set('card-1', {
-    publishers: { operator: 'or', values: ['Publisher'] },
-    authors: { operator: 'and', values: [] },
-    titleKeywords: { operator: 'or', values: [] },
+    expression: {
+      children: [rule('publisher-1', 'publishers', ['Publisher'])],
+    },
   });
 
   const result = await handler(event('GET', { email: ' MEMBER@example.com ' }));
 
   assert.equal(result.statusCode, 200);
-  assert.deepEqual(JSON.parse(result.body).settings.publishers.values, [
-    'Publisher',
-  ]);
+  assert.deepEqual(
+    JSON.parse(result.body).settings.expression.children[0].values,
+    ['Publisher'],
+  );
 });
 
 test('saves validated settings for the authenticated card and ignores client card fields', async () => {
   const { handler, state } = makeHandler();
   const settings = {
-    ...emptySettings,
-    titleKeywords: { operator: 'and', values: ['Novel', 'Story'] },
+    expression: {
+      children: [
+        rule('title-1', 'titleKeywords', ['Novel', 'Story']),
+        rule('author-1', 'authors', ['Writer'], 'or'),
+      ],
+    },
   };
 
   const result = await handler(
@@ -100,13 +115,14 @@ test('rejects invalid payloads, limits, and methods', async () => {
           email: 'member@example.com',
           body: JSON.stringify({
             settings: {
-              ...emptySettings,
-              authors: {
-                operator: 'or',
-                values: Array.from(
-                  { length: 21 },
-                  (_, index) => `Author ${index}`,
-                ),
+              expression: {
+                children: [
+                  rule(
+                    'author-1',
+                    'authors',
+                    Array.from({ length: 21 }, (_, index) => `Author ${index}`),
+                  ),
+                ],
               },
             },
           }),

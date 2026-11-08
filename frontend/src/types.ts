@@ -31,15 +31,33 @@ export interface UserStatusSnapshot {
 
 export type MatchOperator = 'and' | 'or';
 
-export interface ReservationCriterion {
-  operator: MatchOperator;
+export type ReservationField = 'publishers' | 'authors' | 'titleKeywords';
+
+export interface ReservationRule {
+  type: 'rule';
+  id: string;
+  field: ReservationField;
+  join: MatchOperator;
+  negate: boolean;
+  valueOperator: MatchOperator;
   values: string[];
 }
 
+export interface ReservationGroupNode {
+  type: 'group';
+  id: string;
+  join: MatchOperator;
+  children: ReservationExpressionNode[];
+}
+
+export type ReservationExpressionNode = ReservationRule | ReservationGroupNode;
+
+export interface ReservationExpression {
+  children: ReservationExpressionNode[];
+}
+
 export interface ReservationSettings {
-  publishers: ReservationCriterion;
-  authors: ReservationCriterion;
-  titleKeywords: ReservationCriterion;
+  expression: ReservationExpression;
 }
 
 export type Route =
