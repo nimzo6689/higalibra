@@ -2405,6 +2405,10 @@ p {
     gap: 9px;
   }
 
+  .topbar .mobile-brand .brand-mark {
+    display: none;
+  }
+
   .mobile-drawer-layer {
     position: fixed;
     z-index: 20;
