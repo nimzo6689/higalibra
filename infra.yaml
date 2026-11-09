@@ -709,6 +709,12 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub '${StatusBucket.Arn}/${DashNewBooksKey}'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !GetAtt StatusBucket.Arn
+                Condition:
+                  StringLike:
+                    s3:prefix: !Ref DashNewBooksKey
 
   NewBooksHarvestParameterAccessPolicy:
     Type: AWS::IAM::Policy
