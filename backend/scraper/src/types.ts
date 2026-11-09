@@ -56,7 +56,7 @@ export interface NewBook {
 
 export interface LibraryScraper {
   getUserStatus(): Promise<UserStatus>;
-  getNewBooks(): Promise<NewBook[]>;
+  getNewBooks(page?: number): Promise<NewBook[]>;
   extendLoan(barcode: string): Promise<Response>;
   reserveBook(bookNo: string): Promise<Response>;
 }

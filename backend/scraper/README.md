@@ -26,7 +26,11 @@ const scraper = createScraper({
 });
 const status = await scraper.getUserStatus();
 const newBooks = await scraper.getNewBooks();
+const pageTwoBooks = await scraper.getNewBooks(2);
 ```
+
+`getNewBooks(page)` で新着本一覧のページ番号を指定できます。引数を省略した場合は
+`PAGE=1` で取得します。
 
 `extendLoan(barcode)` と `reserveBook(bookNo)` は、図書館アカウントに変更を加える
 処理です。実際にその操作を行う意図がある場合にだけ実行してください。

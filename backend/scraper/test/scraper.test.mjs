@@ -124,6 +124,7 @@ test('getUserStatus caches cover image URLs by book title', async () => {
 });
 
 test('getNewBooks returns null when publishedOn cannot be parsed', async () => {
+  const requests = [];
   const originalFetch = globalThis.fetch;
   const rows = [
     ['Invalid date', '2026.13'],
@@ -147,6 +148,7 @@ test('getNewBooks returns null when publishedOn cannot be parsed', async () => {
 
   globalThis.fetch = async (input) => {
     const url = new URL(input);
+    requests.push(url);
     return new Response(
       url.pathname.endsWith('/OPWNEWBOOK.CSP') ? newBooksHtml : '',
       { headers: { 'set-cookie': 'SID=session; Path=/' } },
@@ -164,6 +166,14 @@ test('getNewBooks returns null when publishedOn cannot be parsed', async () => {
 
     assert.equal(books[0].publishedOn, null);
     assert.equal(books[1].publishedOn.toString(), '2026-10-01');
+    await scraper.getNewBooks(3);
+
+    assert.deepEqual(
+      requests
+        .filter((url) => url.pathname.endsWith('/OPWNEWBOOK.CSP'))
+        .map((url) => url.searchParams.get('PAGE')),
+      ['1', '3'],
+    );
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -80,9 +80,11 @@ export class Scraper implements LibraryScraper {
     return imageUrl;
   }
 
-  async getNewBooks() {
+  async getNewBooks(page = 1) {
     return parseNewBooks(
-      await this.session.getHtml('/OPWNEWBOOK.CSP?WRTCOUNT=100'),
+      await this.session.getHtml(
+        `/OPWNEWBOOK.CSP?WRTCOUNT=100&PAGE=${page}`,
+      ),
     );
   }
 
