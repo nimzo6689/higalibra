@@ -98,24 +98,26 @@ export function SettingsPage({
             )}
             <div className="settings-actions">
               <span>条件60件まで・キーワード20個まで（各100文字）</span>
-              <button
-                type="button"
-                className="settings-test"
-                onClick={onTest}
-                disabled={isTesting || isSaving}
-              >
-                <Search size={17} />
-                {isTesting ? 'テスト中…' : 'テスト'}
-              </button>
-              <button
-                type="button"
-                className="settings-save"
-                onClick={onSave}
-                disabled={isSaving || isTesting}
-              >
-                <Save size={17} />
-                {isSaving ? '保存中…' : '設定を保存'}
-              </button>
+              <div className="settings-action-buttons">
+                <button
+                  type="button"
+                  className="settings-test"
+                  onClick={onTest}
+                  disabled={isTesting || isSaving}
+                >
+                  <Search size={17} />
+                  {isTesting ? 'テスト中…' : 'テスト'}
+                </button>
+                <button
+                  type="button"
+                  className="settings-save"
+                  onClick={onSave}
+                  disabled={isSaving || isTesting}
+                >
+                  <Save size={17} />
+                  {isSaving ? '保存中…' : '保存'}
+                </button>
+              </div>
             </div>
             {testResult && (
               <section className="settings-test-results" aria-live="polite">

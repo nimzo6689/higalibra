@@ -1219,12 +1219,17 @@ p {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   padding-top: 14px;
   border-top: 1px solid #edf0ea;
   color: #929b93;
   font-size: 13px;
+}
+
+.settings-action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-left: auto;
 }
 
 .settings-save {
