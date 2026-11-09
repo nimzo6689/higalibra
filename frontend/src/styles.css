@@ -973,7 +973,6 @@ p {
   background: #fff;
 }
 
-.settings-guidance,
 .settings-loading {
   margin: 0;
   color: #78847b;
@@ -1054,13 +1053,6 @@ p {
   cursor: pointer;
   font-size: 12px;
   font-weight: 800;
-}
-
-.settings-rule-hint {
-  margin: 5px 0 9px;
-  color: #929b93;
-  font-size: 12px;
-  line-height: 1.6;
 }
 
 .settings-rule-options {

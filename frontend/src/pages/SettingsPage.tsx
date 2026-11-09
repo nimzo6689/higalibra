@@ -15,25 +15,21 @@ const criteria: {
   field: ReservationField;
   title: string;
   addLabel: string;
-  hint: string;
 }[] = [
   {
     field: 'publishers',
     title: '出版社',
     addLabel: '+ 出版社を追加',
-    hint: '出版社名のいずれか（またはすべて）に一致する条件です。',
   },
   {
     field: 'authors',
     title: '著者',
     addLabel: '+ 著者名を追加',
-    hint: '著者名のいずれか（またはすべて）に一致する条件です。',
   },
   {
     field: 'titleKeywords',
     title: 'タイトル',
     addLabel: '+ タイトルを追加',
-    hint: 'タイトルに含まれるキーワードを部分一致で照合します。',
   },
 ];
 
@@ -67,7 +63,7 @@ export function SettingsPage({
       <PageIntro
         eyebrow="RESERVATION RULES"
         title="予約設定"
-        subtitle="条件に合う新着書籍を、設定した利用者のカード番号で自動予約します。"
+        subtitle="条件に合う新着書籍を自動予約します。"
         icon={<Settings2 size={24} />}
       />
 
@@ -87,12 +83,6 @@ export function SettingsPage({
           </button>
         ) : (
           <>
-            <p className="settings-guidance">
-              条件は上から評価し、ANDはORより優先されます。グループで条件を囲むと、
-              その中を先に評価できます。NOTで条件を反転できます。キーワードは入力後に
-              Enterキーでタグとして追加してください。すべての条件を削除すると、
-              自動予約は行いません。
-            </p>
             <ExpressionGroupEditor
               group={settings.expression}
               isRoot
@@ -107,10 +97,7 @@ export function SettingsPage({
               </p>
             )}
             <div className="settings-actions">
-              <span>
-                条件は最大60件、各条件のキーワードは20個まで（1個100文字まで）。
-                グループは3階層まで追加できます。
-              </span>
+              <span>条件60件まで・キーワード20個まで（各100文字）</span>
               <button
                 type="button"
                 className="settings-test"
@@ -365,7 +352,6 @@ function RuleEditor({
           <Trash2 size={16} />
         </button>
       </div>
-      <p className="settings-rule-hint">{criterion?.hint}</p>
       <div className="settings-rule-options">
         <OperatorSelect
           value={rule.valueOperator}
