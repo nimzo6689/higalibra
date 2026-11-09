@@ -4,14 +4,23 @@ import {
   createAwsClients,
   loadDashSecret,
   readDashConfiguration,
+  readNewBooksHarvestConfiguration,
 } from './aws.js';
 import { runDash } from './dash.js';
+import { harvestNewBooks, S3NewBooksStore } from './new-books.js';
 import {
   S3ResearchHistoryStore,
   S3ReservationSettingsStore,
 } from './history.js';
 
 export { runDash } from './dash.js';
+export {
+  harvestNewBooks,
+  MAX_NEW_BOOK_PAGES,
+  NEW_BOOKS_PAGE_DELAY_MS,
+  parseNewBooksSnapshot,
+  S3NewBooksStore,
+} from './new-books.js';
 export {
   FileResearchHistoryStore,
   FileReservationSettingsStore,
@@ -30,7 +39,11 @@ export {
   createReservationSettingsHandler,
   reservationSettingsApiHandler,
 } from './reservation-settings-api.js';
-export { parseDashSecret, readDashConfiguration } from './aws.js';
+export {
+  parseDashSecret,
+  readDashConfiguration,
+  readNewBooksHarvestConfiguration,
+} from './aws.js';
 export type {
   DashBookResult,
   DashDependencies,
@@ -53,6 +66,11 @@ export type {
   ReservationRule,
   ReservationSettings,
 } from './settings.js';
+export type {
+  NewBooksSnapshot,
+  NewBooksStore,
+  StoredNewBook,
+} from './new-books.js';
 
 export async function handler() {
   const configuration = readDashConfiguration();
@@ -80,5 +98,28 @@ export async function handler() {
       ),
     },
     { dryRun: false },
+  );
+}
+
+export async function harvestNewBooksHandler() {
+  const configuration = readNewBooksHarvestConfiguration();
+  const clients = createAwsClients(configuration.region);
+  const secret = await loadDashSecret(clients.ssm, configuration.parameterName);
+  const firstUser = secret.users[0];
+  if (!firstUser) {
+    throw new Error('Dash secret must include at least one configured user.');
+  }
+
+  return harvestNewBooks(
+    createScraper({
+      baseUrl: secret.baseUrl,
+      cardNo: firstUser.cardNo,
+      password: firstUser.password,
+    }),
+    new S3NewBooksStore(
+      clients.s3,
+      configuration.historyBucket,
+      configuration.newBooksKey,
+    ),
   );
 }

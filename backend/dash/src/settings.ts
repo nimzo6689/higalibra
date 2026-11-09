@@ -70,7 +70,7 @@ export function hasActiveReservationSettings(
 }
 
 export function matchesReservationSettings(
-  book: NewBook,
+  book: Pick<NewBook, 'title' | 'author' | 'publisher'>,
   settings: ReservationSettings,
 ): boolean {
   if (!hasActiveReservationSettings(settings)) return false;
@@ -252,7 +252,7 @@ function parseOperator(value: unknown, name: string): MatchOperator {
 
 function evaluateChildren(
   children: ReservationExpressionNode[],
-  book: NewBook,
+  book: Pick<NewBook, 'title' | 'author' | 'publisher'>,
 ): boolean {
   if (children.length === 0) return false;
   let completedOrSegments = false;
@@ -269,7 +269,10 @@ function evaluateChildren(
   return completedOrSegments || andSegment;
 }
 
-function evaluateNode(node: ReservationExpressionNode, book: NewBook): boolean {
+function evaluateNode(
+  node: ReservationExpressionNode,
+  book: Pick<NewBook, 'title' | 'author' | 'publisher'>,
+): boolean {
   if (node.type === 'group') return evaluateChildren(node.children, book);
   const actualValue =
     node.field === 'publishers'

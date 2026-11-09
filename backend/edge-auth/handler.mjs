@@ -20,7 +20,8 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
       request.uri === '/subscriptions' ||
       request.uri.startsWith('/subscriptions/');
     const isReservationSettingsRequest =
-      request.uri === '/reservation-settings';
+      request.uri === '/reservation-settings' ||
+      request.uri === '/reservation-settings/test';
     if (request.uri === '/status') {
       if (request.method !== 'GET' && request.method !== 'HEAD') {
         return errorResponse(405, 'Method not allowed.', {
@@ -38,9 +39,14 @@ export function createEdgeAuthHandler(configuration, loadJwks = fetchJwks) {
         });
       }
     } else if (isReservationSettingsRequest) {
-      if (request.method !== 'GET' && request.method !== 'POST') {
+      const methodAllowed =
+        request.uri === '/reservation-settings/test'
+          ? request.method === 'POST'
+          : request.method === 'GET' || request.method === 'POST';
+      if (!methodAllowed) {
         return errorResponse(405, 'Method not allowed.', {
-          allow: 'GET, POST',
+          allow:
+            request.uri === '/reservation-settings/test' ? 'POST' : 'GET, POST',
         });
       }
     } else if (request.uri === '/keeper') {

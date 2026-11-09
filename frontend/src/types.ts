@@ -60,5 +60,19 @@ export interface ReservationSettings {
   expression: ReservationExpression;
 }
 
+export interface ReservationTestBook {
+  bookNo: string;
+  title: string;
+  author: string;
+  publisher: string;
+  acceptanceDate: string | null;
+  publishedOn: string | null;
+}
+
+export interface ReservationTestResult {
+  updatedAt: string | null;
+  books: ReservationTestBook[];
+}
+
 export type Route =
   '/' | '/borrowed' | '/reservations' | '/barcode' | '/settings';

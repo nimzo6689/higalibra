@@ -1,5 +1,5 @@
 import { useId, useState } from 'react';
-import { Plus, Save, Settings2, Trash2, X } from 'lucide-react';
+import { Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react';
 import { PageIntro } from '../components';
 import type {
   MatchOperator,
@@ -8,6 +8,7 @@ import type {
   ReservationField,
   ReservationRule,
   ReservationSettings,
+  ReservationTestResult,
 } from '../types';
 
 const criteria: {
@@ -40,20 +41,26 @@ export function SettingsPage({
   settings,
   isLoading,
   isSaving,
+  isTesting,
   error,
   message,
+  testResult,
   onRetry,
   onChange,
   onSave,
+  onTest,
 }: {
   settings: ReservationSettings | null;
   isLoading: boolean;
   isSaving: boolean;
+  isTesting: boolean;
   error: string;
   message: string;
+  testResult: ReservationTestResult | null;
   onRetry: () => void;
   onChange: (settings: ReservationSettings) => void;
   onSave: () => void;
+  onTest: () => void;
 }) {
   return (
     <div className="page-stack settings-page">
@@ -106,14 +113,47 @@ export function SettingsPage({
               </span>
               <button
                 type="button"
+                className="settings-test"
+                onClick={onTest}
+                disabled={isTesting || isSaving}
+              >
+                <Search size={17} />
+                {isTesting ? 'テスト中…' : 'テスト'}
+              </button>
+              <button
+                type="button"
                 className="settings-save"
                 onClick={onSave}
-                disabled={isSaving}
+                disabled={isSaving || isTesting}
               >
                 <Save size={17} />
                 {isSaving ? '保存中…' : '設定を保存'}
               </button>
             </div>
+            {testResult && (
+              <section className="settings-test-results" aria-live="polite">
+                <h2>テスト結果：{testResult.books.length}冊</h2>
+                <p>
+                  {testResult.updatedAt
+                    ? `新着書籍データ更新：${new Date(testResult.updatedAt).toLocaleString('ja-JP')}`
+                    : '新着書籍データはまだありません。'}
+                </p>
+                {testResult.books.length === 0 ? (
+                  <p>現在の新着書籍には、この条件に一致する本はありません。</p>
+                ) : (
+                  <ul>
+                    {testResult.books.map((book) => (
+                      <li key={book.bookNo}>
+                        <strong>{book.title}</strong>
+                        <span>
+                          {book.author} / {book.publisher}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
           </>
         )}
       </section>

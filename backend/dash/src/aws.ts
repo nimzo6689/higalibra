@@ -7,8 +7,16 @@ export interface DashConfiguration {
   parameterName: string;
   historyBucket: string;
   historyKey: string;
+  newBooksKey: string;
   settingsPrefix: string;
   subscriptionsTable: string;
+  region?: string;
+}
+
+export interface NewBooksHarvestConfiguration {
+  parameterName: string;
+  historyBucket: string;
+  newBooksKey: string;
   region?: string;
 }
 
@@ -20,12 +28,26 @@ export function readDashConfiguration(
     historyBucket: requiredEnvironmentValue(environment, 'DASH_HISTORY_BUCKET'),
     historyKey:
       environment.DASH_HISTORY_KEY?.trim() || 'dash_research_history.json',
+    newBooksKey:
+      environment.DASH_NEW_BOOKS_KEY?.trim() || 'dash_new_books.json',
     settingsPrefix:
       environment.DASH_SETTINGS_PREFIX?.trim() || 'reservation-settings',
     subscriptionsTable: requiredEnvironmentValue(
       environment,
       'SUBSCRIPTIONS_TABLE',
     ),
+    region: environment.AWS_REGION,
+  };
+}
+
+export function readNewBooksHarvestConfiguration(
+  environment: NodeJS.ProcessEnv = process.env,
+): NewBooksHarvestConfiguration {
+  return {
+    parameterName: requiredEnvironmentValue(environment, 'DASH_PARAMETER_NAME'),
+    historyBucket: requiredEnvironmentValue(environment, 'DASH_HISTORY_BUCKET'),
+    newBooksKey:
+      environment.DASH_NEW_BOOKS_KEY?.trim() || 'dash_new_books.json',
     region: environment.AWS_REGION,
   };
 }

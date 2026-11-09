@@ -31,6 +31,32 @@ function makeHandler() {
       state.settings.set(cardNo, settings);
       state.writes.push({ cardNo, settings });
     },
+    async loadNewBooks() {
+      return {
+        version: 1,
+        updatedAt: '2026-11-06T12:00:00.000Z',
+        books: [
+          {
+            bookNo: 'book-1',
+            title: 'Matching Story',
+            author: 'Writer',
+            publisher: 'Publisher',
+            acceptanceDate: null,
+            publishedOn: null,
+            availabilityStatus: '○ 在架あり',
+          },
+          {
+            bookNo: 'book-2',
+            title: 'Unmatched Story',
+            author: 'Other',
+            publisher: 'Other',
+            acceptanceDate: null,
+            publishedOn: null,
+            availabilityStatus: '× 在架なし',
+          },
+        ],
+      };
+    },
   });
   return { handler, state };
 }
@@ -145,5 +171,64 @@ test('rejects invalid payloads, limits, and methods', async () => {
       )
     ).statusCode,
     404,
+  );
+});
+
+test('tests unsaved settings against harvested books without saving them', async () => {
+  const { handler, state } = makeHandler();
+  const settings = {
+    expression: {
+      children: [rule('author-1', 'authors', ['Writer'])],
+    },
+  };
+  const result = await handler(
+    event('POST', {
+      path: '/reservation-settings/test',
+      email: 'member@example.com',
+      body: JSON.stringify({ cardNo: 'ignored-card', settings }),
+    }),
+  );
+
+  assert.equal(result.statusCode, 200);
+  assert.deepEqual(JSON.parse(result.body), {
+    updatedAt: '2026-11-06T12:00:00.000Z',
+    books: [
+      {
+        bookNo: 'book-1',
+        title: 'Matching Story',
+        author: 'Writer',
+        publisher: 'Publisher',
+        acceptanceDate: null,
+        publishedOn: null,
+        availabilityStatus: '○ 在架あり',
+      },
+    ],
+  });
+  assert.equal(state.writes.length, 0);
+});
+
+test('limits the test route to authenticated POST requests', async () => {
+  const { handler } = makeHandler();
+  assert.equal(
+    (
+      await handler(
+        event('GET', {
+          path: '/reservation-settings/test',
+          email: 'member@example.com',
+        }),
+      )
+    ).statusCode,
+    405,
+  );
+  assert.equal(
+    (
+      await handler(
+        event('POST', {
+          path: '/reservation-settings/test',
+          body: JSON.stringify({ settings: emptySettings }),
+        }),
+      )
+    ).statusCode,
+    401,
   );
 });

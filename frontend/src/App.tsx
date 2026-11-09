@@ -11,6 +11,7 @@ import {
   executeKeeper,
   fetchReservationSettings,
   fetchUserStatus,
+  testReservationSettings,
   updateReservationSettings,
 } from './api';
 import {
@@ -38,6 +39,7 @@ import { daysUntil, errorMessage, formatDateTime, readRoute } from './utils';
 import type {
   ReservationExpressionNode,
   ReservationSettings,
+  ReservationTestResult,
   Route,
   UserStatusSnapshot,
 } from './types';
@@ -97,6 +99,9 @@ export default function App() {
   const [settingsSaving, setSettingsSaving] = useState(false);
   const [settingsError, setSettingsError] = useState('');
   const [settingsMessage, setSettingsMessage] = useState('');
+  const [settingsTestResult, setSettingsTestResult] =
+    useState<ReservationTestResult | null>(null);
+  const [settingsTesting, setSettingsTesting] = useState(false);
   const [settingsReloadKey, setSettingsReloadKey] = useState(0);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
@@ -212,6 +217,7 @@ export default function App() {
   useEffect(() => {
     if (!session) {
       setReservationSettings(null);
+      setSettingsTestResult(null);
       return;
     }
 
@@ -375,6 +381,7 @@ export default function App() {
     setSettingsSaving(true);
     setSettingsError('');
     setSettingsMessage('');
+    setSettingsTestResult(null);
     try {
       const cleanSettings = cleanReservationSettings(reservationSettings);
       setReservationSettings(
@@ -391,6 +398,35 @@ export default function App() {
       setSettingsError(errorMessage(error));
     } finally {
       setSettingsSaving(false);
+    }
+  }
+
+  async function runReservationSettingsTest() {
+    if (!session || !reservationSettings) return;
+    const apiUrl = import.meta.env.VITE_RESERVATION_SETTINGS_API_URL?.trim();
+    if (!apiUrl) {
+      setSettingsError('予約設定 API の接続設定がありません。');
+      return;
+    }
+    setSettingsTesting(true);
+    setSettingsError('');
+    setSettingsMessage('');
+    setSettingsTestResult(null);
+    try {
+      const cleanSettings = cleanReservationSettings(reservationSettings);
+      setSettingsTestResult(
+        await testReservationSettings(
+          apiUrl,
+          session.idToken,
+          authConfiguration,
+          setSession,
+          cleanSettings,
+        ),
+      );
+    } catch (error) {
+      setSettingsError(errorMessage(error));
+    } finally {
+      setSettingsTesting(false);
     }
   }
 
@@ -613,15 +649,19 @@ export default function App() {
               settings={reservationSettings}
               isLoading={settingsLoading}
               isSaving={settingsSaving}
+              isTesting={settingsTesting}
               error={settingsError}
               message={settingsMessage}
+              testResult={settingsTestResult}
               onRetry={() => setSettingsReloadKey((key) => key + 1)}
               onChange={(settings) => {
                 setReservationSettings(settings);
                 setSettingsError('');
                 setSettingsMessage('');
+                setSettingsTestResult(null);
               }}
               onSave={() => void saveReservationSettings()}
+              onTest={() => void runReservationSettingsTest()}
             />
           ) : isLoading && !snapshot ? (
             <LoadingScreen label="利用状況を読み込んでいます" inline />

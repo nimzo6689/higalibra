@@ -1166,6 +1166,7 @@ p {
 
 .settings-remove,
 .settings-add,
+.settings-test,
 .settings-save {
   display: inline-flex;
   align-items: center;
@@ -1240,6 +1241,63 @@ p {
   border: 0;
   background: var(--green);
   color: #fff;
+}
+
+.settings-test {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid #dfe8dc;
+  background: #f4f7f1;
+  color: #55775b;
+}
+
+.settings-test:disabled {
+  opacity: 0.65;
+}
+
+.settings-test-results {
+  padding-top: 16px;
+  border-top: 1px solid #edf0ea;
+}
+
+.settings-test-results h2 {
+  margin: 0 0 5px;
+  color: #35473a;
+  font-size: 15px;
+}
+
+.settings-test-results p {
+  margin: 5px 0;
+  color: #78847b;
+  font-size: 13px;
+}
+
+.settings-test-results ul {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-test-results li {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid #e8ebe4;
+  border-radius: 10px;
+  background: #fbfcfa;
+}
+
+.settings-test-results li strong {
+  color: #35473a;
+  font-size: 14px;
+}
+
+.settings-test-results li span {
+  color: #89938a;
+  font-size: 13px;
 }
 
 .settings-save:disabled {

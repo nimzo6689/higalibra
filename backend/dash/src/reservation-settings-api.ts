@@ -11,20 +11,25 @@ import {
 } from '@higalibra/push';
 import {
   EMPTY_RESERVATION_SETTINGS,
+  matchesReservationSettings,
   parseReservationSettings,
   reservationSettingsObjectKey,
 } from './settings.js';
 import type { ReservationSettings } from './settings.js';
+import { S3NewBooksStore } from './new-books.js';
+import type { NewBooksSnapshot } from './new-books.js';
 
 interface ReservationSettingsApiDependencies {
   loadEmailCardNumbers(): Promise<ReadonlyMap<string, string>>;
   loadSettings(cardNo: string): Promise<ReservationSettings>;
   saveSettings(cardNo: string, settings: ReservationSettings): Promise<void>;
+  loadNewBooks(): Promise<NewBooksSnapshot>;
 }
 
 interface ReservationSettingsApiConfiguration {
   bucket: string;
   prefix: string;
+  newBooksKey: string;
   allowedEmailsParameterName: string;
   region?: string;
 }
@@ -37,14 +42,18 @@ export function createReservationSettingsHandler(
   ): Promise<FunctionUrlResponse> {
     const method = (event.requestContext?.http?.method ?? '').toUpperCase();
     const path = event.rawPath ?? event.requestContext?.http?.path ?? '';
-    if (path !== '/reservation-settings') {
+    const isTestRequest = path === '/reservation-settings/test';
+    if (path !== '/reservation-settings' && !isTestRequest) {
       return response(404, { error: 'Not found.' });
     }
-    if (method !== 'GET' && method !== 'POST') {
+    if (
+      (isTestRequest && method !== 'POST') ||
+      (!isTestRequest && method !== 'GET' && method !== 'POST')
+    ) {
       return response(
         405,
         { error: 'Method not allowed.' },
-        { allow: 'GET, POST' },
+        { allow: isTestRequest ? 'POST' : 'GET, POST' },
       );
     }
 
@@ -85,6 +94,15 @@ export function createReservationSettingsHandler(
             : 'Reservation settings are invalid.',
       });
     }
+    if (isTestRequest) {
+      const snapshot = await dependencies.loadNewBooks();
+      return response(200, {
+        updatedAt: snapshot.updatedAt,
+        books: snapshot.books.filter((book) =>
+          matchesReservationSettings(book, settings),
+        ),
+      });
+    }
     await dependencies.saveSettings(cardNo, settings);
     return response(200, { settings });
   };
@@ -96,6 +114,11 @@ export async function reservationSettingsApiHandler(
   const configuration = readConfiguration();
   const client = new S3Client({ region: configuration.region });
   const prefix = configuration.prefix;
+  const newBooksStore = new S3NewBooksStore(
+    client,
+    configuration.bucket,
+    configuration.newBooksKey,
+  );
   return createReservationSettingsHandler({
     loadEmailCardNumbers: () =>
       loadEmailCardNumbers(configuration.allowedEmailsParameterName),
@@ -130,6 +153,7 @@ export async function reservationSettingsApiHandler(
         }),
       );
     },
+    loadNewBooks: () => newBooksStore.load(),
   })(event);
 }
 
@@ -139,6 +163,8 @@ function readConfiguration(
   return {
     bucket: requiredEnvironmentValue(environment, 'DASH_HISTORY_BUCKET'),
     prefix: environment.DASH_SETTINGS_PREFIX?.trim() || 'reservation-settings',
+    newBooksKey:
+      environment.DASH_NEW_BOOKS_KEY?.trim() || 'dash_new_books.json',
     allowedEmailsParameterName: requiredEnvironmentValue(
       environment,
       'ALLOWED_EMAILS_PARAMETER_NAME',

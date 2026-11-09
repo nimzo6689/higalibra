@@ -5,6 +5,8 @@ import type {
   ReservationField,
   ReservationRule,
   ReservationSettings,
+  ReservationTestBook,
+  ReservationTestResult,
   ReservedBook,
   UserStatusSnapshot,
 } from './types';
@@ -151,6 +153,61 @@ export async function updateReservationSettings(
   return parseReservationSettings(value.settings);
 }
 
+export async function testReservationSettings(
+  apiUrl: string,
+  idToken: string,
+  configuration: AuthConfiguration | null,
+  onSessionRefresh: (session: AuthSession) => void,
+  settings: ReservationSettings,
+): Promise<ReservationTestResult> {
+  const body = JSON.stringify({ settings });
+  const response = await fetchWithTokenRefresh(
+    new URL('/reservation-settings/test', apiUrl),
+    {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${idToken}`,
+        'x-amz-content-sha256': await sha256Hex(body),
+        'content-type': 'application/json',
+      },
+      body,
+      cache: 'no-store',
+    },
+    configuration,
+    idToken,
+    onSessionRefresh,
+  );
+  if (!response.ok) {
+    let errorDetail: string | null = null;
+    try {
+      const value: unknown = await response.json();
+      if (isRecord(value) && typeof value.error === 'string') {
+        errorDetail = value.error;
+      }
+    } catch {
+      errorDetail = null;
+    }
+    throw new Error(
+      errorDetail ??
+        `予約条件のテストに失敗しました (HTTP ${response.status})。`,
+    );
+  }
+  const value: unknown = await response.json();
+  if (
+    !isRecord(value) ||
+    (typeof value.updatedAt !== 'string' && value.updatedAt !== null) ||
+    !Array.isArray(value.books)
+  ) {
+    throw new Error('予約条件テストの結果形式が正しくありません。');
+  }
+  return {
+    updatedAt: value.updatedAt,
+    books: value.books.map((book, index) =>
+      parseReservationTestBook(book, index),
+    ),
+  };
+}
+
 function parseUser(value: unknown, index: number): LibraryUser {
   const cardNo =
     isRecord(value) && typeof value.cardNo === 'string'
@@ -177,6 +234,34 @@ function parseUser(value: unknown, index: number): LibraryUser {
     reservedBooks: value.reservedBooks.map((book, bookIndex) =>
       parseReservedBook(book, index, bookIndex),
     ),
+  };
+}
+
+function parseReservationTestBook(
+  value: unknown,
+  index: number,
+): ReservationTestBook {
+  if (
+    !isRecord(value) ||
+    typeof value.bookNo !== 'string' ||
+    typeof value.title !== 'string' ||
+    typeof value.author !== 'string' ||
+    typeof value.publisher !== 'string' ||
+    (typeof value.acceptanceDate !== 'string' &&
+      value.acceptanceDate !== null) ||
+    (typeof value.publishedOn !== 'string' && value.publishedOn !== null)
+  ) {
+    throw new Error(
+      `予約条件テストの書籍データ (${index + 1}) が正しくありません。`,
+    );
+  }
+  return {
+    bookNo: value.bookNo,
+    title: value.title,
+    author: value.author,
+    publisher: value.publisher,
+    acceptanceDate: value.acceptanceDate,
+    publishedOn: value.publishedOn,
   };
 }
 

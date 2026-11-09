@@ -122,6 +122,31 @@ test('requires a verified email claim to invoke Keeper', async () => {
   assert.equal(unsupportedMethod.headers.allow[0].value, 'POST');
 });
 
+test('authenticates reservation-condition test requests and requires POST', async () => {
+  const handler = createHandler();
+  const accepted = await handler(
+    cloudFrontEvent('/reservation-settings/test', createToken(), 'POST'),
+  );
+  const unsupportedMethod = await handler(
+    cloudFrontEvent('/reservation-settings/test', createToken(), 'GET'),
+  );
+  const unverifiedEmail = await handler(
+    cloudFrontEvent(
+      '/reservation-settings/test',
+      createToken({ email_verified: false }),
+      'POST',
+    ),
+  );
+
+  assert.equal(
+    accepted.headers['x-authenticated-email'][0].value,
+    'member@example.com',
+  );
+  assert.equal(unsupportedMethod.status, '405');
+  assert.equal(unsupportedMethod.headers.allow[0].value, 'POST');
+  assert.equal(unverifiedEmail.status, '401');
+});
+
 test('requires a verified email claim for subscriptions', async () => {
   const result = await createHandler()(
     cloudFrontEvent(

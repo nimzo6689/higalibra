@@ -14,6 +14,11 @@ AND / OR を選択できます。タイトルキーワードは大文字・小�
 履歴を使って通知を再試行します。既存の version 1 履歴は読み込み時に version 2 へ移行し、
 予約済み・予約処理中の記録を引き継ぎます。
 
+金曜日21時（JST）の新着書籍取得 Lambda はページごとに1秒以上空けて最大100ページまで
+確認し、S3 の既存データに含まれる書籍が見つかった時点で終了します。同じ最終ページが
+繰り返された場合も終了し、見つかった差分を既存の新着書籍データに追加します。予約設定画面の
+「テスト」は保存前の条件を同じ照合処理に適用し、一致した書籍だけを表示します。
+
 ## AWS 設定
 
 | 環境変数                        | 用途                                                              |
@@ -21,6 +26,7 @@ AND / OR を選択できます。タイトルキーワードは大文字・小�
 | `DASH_PARAMETER_NAME`           | 図書館アカウント・VAPID 設定を含む SecureString パラメーター名    |
 | `DASH_HISTORY_BUCKET`           | 調査・予約履歴と予約設定を保存する非公開 S3 バケット              |
 | `DASH_HISTORY_KEY`              | 履歴キー（省略時 `dash_research_history.json`）                   |
+| `DASH_NEW_BOOKS_KEY`            | 取得した新着書籍キー（省略時 `dash_new_books.json`）              |
 | `DASH_SETTINGS_PREFIX`          | 利用者別設定の S3 プレフィックス（省略時 `reservation-settings`） |
 | `SUBSCRIPTIONS_TABLE`           | Web Push 購読情報を格納する DynamoDB テーブル                     |
 | `ALLOWED_EMAILS_PARAMETER_NAME` | 設定 API が認証メールをカード番号に対応付ける SecureString        |
@@ -47,10 +53,12 @@ Gemini API キーや固定の予約カード番号は不要です。
 ```
 
 設定 API は Cognito ID token を Lambda@Edge で検証した同一 CloudFront origin の
-`GET /reservation-settings` と `POST /reservation-settings` です。Lambda は検証済みメールを
+`GET /reservation-settings`、`POST /reservation-settings` と
+`POST /reservation-settings/test` です。Lambda は検証済みメールを
 `ALLOWED_EMAILS_PARAMETER_NAME` の対応表でカード番号に変換し、カード番号を含む
 `reservation-settings/<cardNo>.json` の S3 オブジェクトだけを読み書きします。リクエスト
 からカード番号を指定することはできません。
+テスト API は POST の予約条件を保存せず、S3 の新着書籍データに照合した結果を返します。
 POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudFront の OAC 署名に
 使用します。このヘッダーは CloudFront の origin request policy には指定しません。
 
@@ -136,6 +144,7 @@ pnpm --filter @higalibra/dash test
 pnpm --filter @higalibra/dash format:check
 ```
 
-Dash Lambda ハンドラーは `dist/index.handler`、予約設定 API Lambda ハンドラーは
-`dist/index.reservationSettingsApiHandler`、ランタイムは Node.js 26 です。両関数には Dash
-パッケージ成果物をデプロイします。
+Dash Lambda ハンドラーは `dist/index.handler`、新着書籍取得 Lambda は
+`dist/index.harvestNewBooksHandler`、予約設定 API Lambda は
+`dist/index.reservationSettingsApiHandler` です。いずれも Node.js 26 で、Dash パッケージ成果物を
+デプロイします。

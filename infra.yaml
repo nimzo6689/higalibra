@@ -39,6 +39,10 @@ Parameters:
     Type: String
     Default: dash_research_history.json
     Description: S3 object key for Dash's research history.
+  DashNewBooksKey:
+    Type: String
+    Default: dash_new_books.json
+    Description: S3 object key for the harvested new books used by reservation tests.
   ReservationSettingsPrefix:
     Type: String
     Default: reservation-settings
@@ -683,6 +687,84 @@ Resources:
           DASH_SETTINGS_PREFIX: !Ref ReservationSettingsPrefix
           SUBSCRIPTIONS_TABLE: !Ref SubscriptionsTable
 
+  NewBooksHarvestExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole'
+      Policies:
+        - PolicyName: NewBooksSnapshotAccess
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub '${StatusBucket.Arn}/${DashNewBooksKey}'
+
+  NewBooksHarvestParameterAccessPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: NewBooksHarvestParameterAccess
+      Roles:
+        - !Ref NewBooksHarvestExecutionRole
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: ssm:GetParameter
+            Resource:
+              Fn::If:
+                - KeeperParameterNameIsArn
+                - Ref: KeeperParameterName
+                - Fn::Sub: 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter${KeeperParameterName}'
+
+  NewBooksHarvestFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub '${AWS::StackName}-new-books-harvest'
+      Runtime: nodejs26.x
+      Handler: dist/index.harvestNewBooksHandler
+      Role: !GetAtt NewBooksHarvestExecutionRole.Arn
+      Timeout: 900
+      MemorySize: 512
+      Architectures:
+        - arm64
+      Code:
+        S3Bucket: !Ref ArtifactBucketName
+        S3Key: !Ref DashObjectKey
+      Environment:
+        Variables:
+          DASH_PARAMETER_NAME: !Ref KeeperParameterName
+          DASH_HISTORY_BUCKET: !Ref StatusBucket
+          DASH_NEW_BOOKS_KEY: !Ref DashNewBooksKey
+
+  NewBooksHarvestSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Harvest new books every Friday at 21:00 Japan Standard Time.
+      ScheduleExpression: cron(0 12 ? * FRI *)
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt NewBooksHarvestFunction.Arn
+          Id: NewBooksHarvestFunction
+
+  NewBooksHarvestSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref NewBooksHarvestFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt NewBooksHarvestSchedule.Arn
+
   DashSchedule:
     Type: AWS::Events::Rule
     Properties:
@@ -729,6 +811,9 @@ Resources:
                   - s3:GetObject
                   - s3:PutObject
                 Resource: !Sub '${StatusBucket.Arn}/${ReservationSettingsPrefix}/*'
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource: !Sub '${StatusBucket.Arn}/${DashNewBooksKey}'
         - PolicyName: ReservationSettingsAllowedEmailsAccess
           PolicyDocument:
             Version: '2012-10-17'
@@ -759,6 +844,7 @@ Resources:
         Variables:
           DASH_HISTORY_BUCKET: !Ref StatusBucket
           DASH_SETTINGS_PREFIX: !Ref ReservationSettingsPrefix
+          DASH_NEW_BOOKS_KEY: !Ref DashNewBooksKey
           ALLOWED_EMAILS_PARAMETER_NAME: !Ref AllowedEmailsParameterName
 
   ReservationSettingsFunctionUrl:
