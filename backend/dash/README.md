@@ -59,6 +59,7 @@ Gemini API キーや固定の予約カード番号は不要です。
 `reservation-settings/<cardNo>.json` の S3 オブジェクトだけを読み書きします。リクエスト
 からカード番号を指定することはできません。
 テスト API は POST の予約条件を保存せず、S3 の新着書籍データに照合した結果を返します。
+照合は保存済みの新着書籍全体を対象とし、結果は新しい順に最大50冊返します。
 POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudFront の OAC 署名に
 使用します。このヘッダーは CloudFront の origin request policy には指定しません。
 

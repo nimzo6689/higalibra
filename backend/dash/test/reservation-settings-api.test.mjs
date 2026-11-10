@@ -206,16 +206,26 @@ test('tests unsaved settings against harvested books without saving them', async
   assert.equal(state.writes.length, 0);
 });
 
-test('tests settings against at most the 50 newest books', async () => {
+test('tests all stored books and returns at most the 50 newest matches', async () => {
   const books = Array.from({ length: 51 }, (_, index) => ({
     bookNo: `book-${index + 1}`,
     title: `Story ${index + 1}`,
-    author: 'Writer',
-    publisher: 'Publisher',
+    author: 'Other',
+    publisher: 'Other',
     acceptanceDate: null,
     publishedOn: null,
     availabilityStatus: '○ 在架あり',
-  }));
+  })).concat(
+    Array.from({ length: 60 }, (_, index) => ({
+      bookNo: `match-${index + 1}`,
+      title: `Matching Story ${index + 1}`,
+      author: 'Writer',
+      publisher: '光文社',
+      acceptanceDate: null,
+      publishedOn: null,
+      availabilityStatus: '○ 在架あり',
+    })),
+  );
   const { handler } = makeHandler(books);
   const result = await handler(
     event('POST', {
@@ -224,7 +234,7 @@ test('tests settings against at most the 50 newest books', async () => {
       body: JSON.stringify({
         settings: {
           expression: {
-            children: [rule('author-1', 'authors', ['Writer'])],
+            children: [rule('publisher-1', 'publishers', ['光文社'])],
           },
         },
       }),
@@ -234,8 +244,8 @@ test('tests settings against at most the 50 newest books', async () => {
   assert.equal(result.statusCode, 200);
   const returnedBooks = JSON.parse(result.body).books;
   assert.equal(returnedBooks.length, 50);
-  assert.equal(returnedBooks[0].bookNo, 'book-1');
-  assert.equal(returnedBooks.at(-1).bookNo, 'book-50');
+  assert.equal(returnedBooks[0].bookNo, 'match-1');
+  assert.equal(returnedBooks.at(-1).bookNo, 'match-50');
 });
 
 test('limits the test route to authenticated POST requests', async () => {

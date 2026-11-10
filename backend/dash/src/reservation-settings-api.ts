@@ -101,8 +101,8 @@ export function createReservationSettingsHandler(
       return response(200, {
         updatedAt: snapshot.updatedAt,
         books: snapshot.books
-          .slice(0, MAX_RESERVATION_SETTINGS_TEST_BOOKS)
-          .filter((book) => matchesReservationSettings(book, settings)),
+          .filter((book) => matchesReservationSettings(book, settings))
+          .slice(0, MAX_RESERVATION_SETTINGS_TEST_BOOKS),
       });
     }
     await dependencies.saveSettings(cardNo, settings);
