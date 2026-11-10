@@ -1055,11 +1055,6 @@ p {
   font-weight: 800;
 }
 
-.settings-rule-options {
-  display: flex;
-  margin-bottom: 8px;
-}
-
 .settings-operator {
   display: inline-flex;
   align-items: center;

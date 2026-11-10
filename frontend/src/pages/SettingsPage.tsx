@@ -354,13 +354,6 @@ function RuleEditor({
           <Trash2 size={16} />
         </button>
       </div>
-      <div className="settings-rule-options">
-        <OperatorSelect
-          value={rule.valueOperator}
-          label="キーワードの一致"
-          onChange={(valueOperator) => onChange({ ...rule, valueOperator })}
-        />
-      </div>
       <div className="settings-chip-input">
         <div
           className="settings-chips"
@@ -458,7 +451,6 @@ function createRule(
     field,
     join,
     negate: false,
-    valueOperator: 'or',
     values: [],
   };
 }

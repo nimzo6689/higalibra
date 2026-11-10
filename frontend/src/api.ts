@@ -3,7 +3,6 @@ import type {
   LibraryUser,
   ReservationExpressionNode,
   ReservationField,
-  ReservationRule,
   ReservationSettings,
   ReservationTestBook,
   ReservationTestResult,
@@ -328,10 +327,7 @@ function parseReservationSettings(value: unknown): ReservationSettings {
   if (!isRecord(value)) {
     throw new Error('予約設定データの形式が正しくありません。');
   }
-  if ('expression' in value) {
-    return { expression: parseReservationExpression(value.expression) };
-  }
-  return { expression: { children: parseLegacyReservationSettings(value) } };
+  return { expression: parseReservationExpression(value.expression) };
 }
 
 function parseReservationExpression(value: unknown): {
@@ -387,7 +383,6 @@ function parseReservationNodes(
       typeof node.field !== 'string' ||
       !isReservationField(node.field) ||
       !isMatchOperator(node.join) ||
-      !isMatchOperator(node.valueOperator) ||
       typeof node.negate !== 'boolean' ||
       !Array.isArray(node.values)
     ) {
@@ -416,48 +411,6 @@ function parseReservationNodes(
             field: node.field,
             join: node.join,
             negate: node.negate,
-            valueOperator: node.valueOperator,
-            values,
-          },
-        ]
-      : [];
-  });
-}
-
-function parseLegacyReservationSettings(
-  value: Record<string, unknown>,
-): ReservationRule[] {
-  const fields: ReservationField[] = ['publishers', 'authors', 'titleKeywords'];
-  return fields.flatMap((field) => {
-    const criterion = value[field];
-    if (
-      !isRecord(criterion) ||
-      !isMatchOperator(criterion.operator) ||
-      !Array.isArray(criterion.values) ||
-      criterion.values.length > 20
-    ) {
-      throw new Error('予約条件データの形式が正しくありません。');
-    }
-    const values: string[] = [];
-    for (const item of criterion.values) {
-      if (
-        typeof item !== 'string' ||
-        item.trim() === '' ||
-        item.trim().length > 100
-      ) {
-        throw new Error('予約条件データの形式が正しくありません。');
-      }
-      values.push(item.trim());
-    }
-    return values.length
-      ? [
-          {
-            type: 'rule',
-            id: `legacy-${field}`,
-            field,
-            join: 'and',
-            negate: false,
-            valueOperator: criterion.operator,
             values,
           },
         ]

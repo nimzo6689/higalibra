@@ -39,7 +39,6 @@ export interface ReservationRule {
   field: ReservationField;
   join: MatchOperator;
   negate: boolean;
-  valueOperator: MatchOperator;
   values: string[];
 }
 
