@@ -56,7 +56,7 @@ graph LR
         end
 
         subgraph Req3 ["要件3: 条件照合自動予約バッチ"]
-            Scheduler2["EventBridge<br/>(毎週水曜日16時実行)"]
+            Scheduler2["EventBridge<br/>(平日9:00〜17:45、15分おき)"]
             Job2["Lambda(Dash)"]
             Scheduler2 --> Job2
             Job2 --> DynamoDB
@@ -112,7 +112,7 @@ graph LR
 ### 3.3 要件3: 新着書籍の条件照合・自動予約
 
 - **目的**: 新着本の中から好みの書籍を予約し、結果を即座に通知する。
-- **起動トリガー**: EventBridge（毎週水曜日16時に実行）
+- **起動トリガー**: EventBridge（平日9:00〜17:45に15分おき）
 - **実行基盤**: Lambda (Node.js)
 - **処理フロー**:
   1. S3 から利用者ごとの予約条件を取得する。
