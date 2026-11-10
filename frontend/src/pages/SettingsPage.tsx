@@ -19,6 +19,7 @@ import type {
   ReservationSettings,
   ReservationTestResult,
 } from '../types';
+import { formatPublicationMonth } from '../utils';
 
 const criteria: {
   field: ReservationField;
@@ -145,6 +146,9 @@ export function SettingsPage({
                         <strong>{book.title}</strong>
                         <span>
                           {book.author} / {book.publisher}
+                        </span>
+                        <span>
+                          出版年月：{formatPublicationMonth(book.publishedOn)}
                         </span>
                       </li>
                     ))}

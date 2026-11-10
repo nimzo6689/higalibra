@@ -41,6 +41,13 @@ export function formatDateTime(value: string): string {
   }).format(date);
 }
 
+export function formatPublicationMonth(value: string | null): string {
+  if (!value) return '不明';
+  const match = /^(\d{4})-(0[1-9]|1[0-2])(?:-\d{2})?$/.exec(value);
+  if (!match) return value;
+  return `${match[1]}年${Number(match[2])}月`;
+}
+
 export function coverClass(title: string): string {
   const styles = ['cover-green', 'cover-peach', 'cover-lavender', 'cover-blue'];
   return styles[title.length % styles.length];
