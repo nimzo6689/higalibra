@@ -999,6 +999,55 @@ p {
   gap: 8px;
 }
 
+.settings-expression-row-tools,
+.settings-reorder {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-expression-row-tools {
+  justify-content: space-between;
+}
+
+.settings-group-selection {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #657368;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.settings-group-selection input {
+  accent-color: var(--green);
+}
+
+.settings-group-selection-hint {
+  width: 100%;
+  color: #78847b;
+  font-size: 12px;
+}
+
+.settings-reorder-button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid #e8ebe4;
+  border-radius: 8px;
+  background: #fff;
+  color: #78847b;
+  cursor: pointer;
+}
+
+.settings-reorder-button:disabled {
+  color: #c3c9c2;
+  cursor: not-allowed;
+}
+
 .settings-group {
   min-width: 0;
   padding: 13px;

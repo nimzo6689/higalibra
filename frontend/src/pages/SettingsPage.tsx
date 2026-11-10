@@ -1,5 +1,14 @@
 import { useId, useState } from 'react';
-import { Plus, Save, Search, Settings2, Trash2, X } from 'lucide-react';
+import {
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Save,
+  Search,
+  Settings2,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { PageIntro } from '../components';
 import type {
   MatchOperator,
@@ -167,17 +176,68 @@ function ExpressionGroupEditor({
   onUngroup?: () => void;
   onRemove?: () => void;
 }) {
+  const [selectedNodeIds, setSelectedNodeIds] = useState<Set<string> | null>(
+    null,
+  );
   const updateNode = (index: number, node: ReservationExpressionNode) =>
     onChange({
       children: group.children.map((current, nodeIndex) =>
         nodeIndex === index ? node : current,
       ),
     });
-  const removeNode = (index: number) =>
+  const removeNode = (index: number) => {
+    const removedId = group.children[index]?.id;
+    if (removedId) {
+      setSelectedNodeIds((selected) => {
+        if (!selected) return null;
+        const next = new Set(selected);
+        next.delete(removedId);
+        return next;
+      });
+    }
     onChange({
       children: group.children.filter((_, nodeIndex) => nodeIndex !== index),
     });
+  };
+  const moveNode = (index: number, direction: -1 | 1) => {
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= group.children.length) return;
+    const nextChildren = [...group.children];
+    [nextChildren[index], nextChildren[targetIndex]] = [
+      { ...group.children[targetIndex], join: group.children[index].join },
+      { ...group.children[index], join: group.children[targetIndex].join },
+    ];
+    onChange({ children: nextChildren });
+  };
+  const selectedIndexes = group.children.flatMap((node, index) =>
+    selectedNodeIds?.has(node.id) ? [index] : [],
+  );
+  const selectedStart = selectedIndexes[0] ?? -1;
+  const selectedEnd = selectedIndexes[selectedIndexes.length - 1] ?? -1;
   const canAddGroup = depth + 1 + maxNestedGroupDepth(group.children) <= 3;
+  const canGroupSelection =
+    selectedIndexes.length >= 2 &&
+    selectedEnd - selectedStart + 1 === selectedIndexes.length;
+
+  const groupSelection = () => {
+    if (!selectedNodeIds || !canGroupSelection) return;
+    const firstIndex = selectedIndexes[0];
+    const lastIndex = selectedIndexes[selectedIndexes.length - 1];
+    const selectedChildren = group.children.slice(firstIndex, lastIndex + 1);
+    onChange({
+      children: [
+        ...group.children.slice(0, firstIndex),
+        {
+          type: 'group',
+          id: createId(),
+          join: selectedChildren[0].join,
+          children: selectedChildren,
+        },
+        ...group.children.slice(lastIndex + 1),
+      ],
+    });
+    setSelectedNodeIds(null);
+  };
 
   return (
     <div className={isRoot ? 'settings-expression' : 'settings-group'}>
@@ -207,6 +267,55 @@ function ExpressionGroupEditor({
       <div className="settings-expression-children">
         {group.children.map((node, index) => (
           <div className="settings-expression-row" key={node.id}>
+            <div className="settings-expression-row-tools">
+              {selectedNodeIds && (
+                <label className="settings-group-selection">
+                  <input
+                    type="checkbox"
+                    checked={selectedNodeIds.has(node.id)}
+                    disabled={
+                      !selectedNodeIds.has(node.id) &&
+                      selectedIndexes.length > 0 &&
+                      index !== selectedStart - 1 &&
+                      index !== selectedEnd + 1
+                    }
+                    aria-label={`「${getNodeLabel(node)}」をグループに含める`}
+                    onChange={(event) =>
+                      setSelectedNodeIds((selected) => {
+                        const next = new Set(selected ?? []);
+                        if (event.target.checked) next.add(node.id);
+                        else next.delete(node.id);
+                        return next;
+                      })
+                    }
+                  />
+                  グループに含める
+                </label>
+              )}
+              <div className="settings-reorder">
+                <button
+                  type="button"
+                  className="settings-reorder-button"
+                  aria-label={`「${getNodeLabel(node)}」を同じ階層で上へ移動`}
+                  disabled={index === 0 || selectedNodeIds !== null}
+                  onClick={() => moveNode(index, -1)}
+                >
+                  <ChevronUp size={16} />
+                </button>
+                <button
+                  type="button"
+                  className="settings-reorder-button"
+                  aria-label={`「${getNodeLabel(node)}」を同じ階層で下へ移動`}
+                  disabled={
+                    index === group.children.length - 1 ||
+                    selectedNodeIds !== null
+                  }
+                  onClick={() => moveNode(index, 1)}
+                >
+                  <ChevronDown size={16} />
+                </button>
+              </div>
+            </div>
             {index > 0 && (
               <OperatorSelect
                 value={node.join}
@@ -250,12 +359,17 @@ function ExpressionGroupEditor({
       </div>
 
       <div className="settings-add-condition">
+        {selectedNodeIds !== null && (
+          <span className="settings-group-selection-hint">
+            同じ階層で隣り合う条件を2つ以上選択してください。
+          </span>
+        )}
         {criteria.map(({ field, addLabel }) => (
           <button
             key={field}
             type="button"
             className="settings-add"
-            disabled={totalRuleCount >= 60}
+            disabled={totalRuleCount >= 60 || selectedNodeIds !== null}
             onClick={() =>
               onChange({
                 children: [...group.children, createRule(field, 'and')],
@@ -267,25 +381,34 @@ function ExpressionGroupEditor({
           </button>
         ))}
         {group.children.length > 0 && canAddGroup && (
-          <button
-            type="button"
-            className="settings-add settings-add-group"
-            onClick={() =>
-              onChange({
-                children: [
-                  {
-                    type: 'group',
-                    id: createId(),
-                    join: 'and',
-                    children: group.children,
-                  },
-                ],
-              })
-            }
-          >
-            <Plus size={16} />
-            グループを追加
-          </button>
+          selectedNodeIds === null ? (
+            <button
+              type="button"
+              className="settings-add settings-add-group"
+              onClick={() => setSelectedNodeIds(new Set())}
+            >
+              <Plus size={16} />
+              グループを追加
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="settings-add settings-add-group"
+                disabled={!canGroupSelection}
+                onClick={groupSelection}
+              >
+                グループ化
+              </button>
+              <button
+                type="button"
+                className="settings-add"
+                onClick={() => setSelectedNodeIds(null)}
+              >
+                キャンセル
+              </button>
+            </>
+          )
         )}
       </div>
     </div>
@@ -457,6 +580,11 @@ function createRule(
 
 function createId(): string {
   return crypto.randomUUID();
+}
+
+function getNodeLabel(node: ReservationExpressionNode): string {
+  if (node.type === 'group') return 'グループ';
+  return criteria.find(({ field }) => field === node.field)?.title ?? '条件';
 }
 
 function countRules(nodes: ReservationExpressionNode[]): number {
