@@ -40,11 +40,16 @@ function makeStore(books = []) {
 test('harvests only books before the first registered book and merges the S3 list', async () => {
   const { store, state } = makeStore([book('registered')]);
   const pages = [];
+  const calls = [];
   const delays = [];
   const result = await harvestNewBooks(
     {
+      async setNewBooksSpan(span) {
+        calls.push(`span:${span}`);
+      },
       async getNewBooks(page) {
         pages.push(page);
+        calls.push(`page:${page}`);
         return page === 1
           ? [book('new-3'), book('new-2')]
           : [book('new-1'), book('registered'), book('too-old')];
@@ -57,6 +62,7 @@ test('harvests only books before the first registered book and merges the S3 lis
     },
   );
 
+  assert.deepEqual(calls, ['span:4', 'page:1', 'page:2']);
   assert.deepEqual(pages, [1, 2]);
   assert.deepEqual(delays, [NEW_BOOKS_PAGE_DELAY_MS]);
   assert.equal(result.updatedAt, '2026-11-06T12:00:00.000Z');
@@ -72,6 +78,7 @@ test('stops when the scraper returns the same final page twice', async () => {
   const pages = [];
   const result = await harvestNewBooks(
     {
+      async setNewBooksSpan() {},
       async getNewBooks(page) {
         pages.push(page);
         return [book('last-page-book')];
@@ -94,6 +101,7 @@ test('does not request more than 100 pages', async () => {
   const delays = [];
   await harvestNewBooks(
     {
+      async setNewBooksSpan() {},
       async getNewBooks(page) {
         pages.push(page);
         return [book(`book-${page}`)];

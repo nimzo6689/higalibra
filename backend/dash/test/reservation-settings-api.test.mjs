@@ -13,7 +13,6 @@ function rule(id, field, values, join = 'and') {
     field,
     join,
     negate: false,
-    valueOperator: 'or',
     values,
   };
 }

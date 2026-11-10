@@ -6,3 +6,4 @@ node_modules/
 backend/dash/.dash-history.json
 backend/dash/.book-preferences.json
 backend/dash/.reservation-settings.json
+backend/dash/dash_new_books.json

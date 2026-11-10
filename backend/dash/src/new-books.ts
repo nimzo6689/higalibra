@@ -70,7 +70,7 @@ export class S3NewBooksStore implements NewBooksStore {
 }
 
 export async function harvestNewBooks(
-  scraper: Pick<LibraryScraper, 'getNewBooks'>,
+  scraper: Pick<LibraryScraper, 'getNewBooks' | 'setNewBooksSpan'>,
   store: NewBooksStore,
   options: {
     sleep?: (milliseconds: number) => Promise<void>;
@@ -83,6 +83,8 @@ export async function harvestNewBooks(
   const discoveredBookNos = new Set<string>();
   const pageSignatures = new Set<string>();
   const sleep = options.sleep ?? delay;
+
+  await scraper.setNewBooksSpan(1);
 
   for (let page = 1; page <= MAX_NEW_BOOK_PAGES; page += 1) {
     if (page > 1) await sleep(NEW_BOOKS_PAGE_DELAY_MS);

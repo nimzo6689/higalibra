@@ -9,7 +9,6 @@ export interface ReservationRule {
   field: ReservationField;
   join: MatchOperator;
   negate: boolean;
-  valueOperator: MatchOperator;
   values: string[];
 }
 
@@ -38,11 +37,6 @@ const MAX_RULES = 60;
 const MAX_GROUP_DEPTH = 3;
 const MAX_VALUES_PER_RULE = 20;
 const MAX_VALUE_LENGTH = 100;
-const reservationFields: ReservationField[] = [
-  'publishers',
-  'authors',
-  'titleKeywords',
-];
 export function reservationSettingsObjectKey(
   prefix: string,
   cardNo: string,
@@ -54,13 +48,7 @@ export function parseReservationSettings(value: unknown): ReservationSettings {
   if (!isRecord(value)) {
     throw new Error('Reservation settings must be a JSON object.');
   }
-  if ('expression' in value) {
-    return {
-      expression: parseExpression(value.expression),
-    };
-  }
-
-  return { expression: { children: parseLegacySettings(value) } };
+  return { expression: parseExpression(value.expression) };
 }
 
 export function hasActiveReservationSettings(
@@ -175,61 +163,8 @@ function parseRule(
     field: value.field,
     join: parseOperator(value.join, `${name} join`),
     negate: value.negate,
-    valueOperator: parseOperator(
-      value.valueOperator,
-      `${name} keyword operator`,
-    ),
     values,
   };
-}
-
-function parseLegacySettings(
-  value: Record<string, unknown>,
-): ReservationRule[] {
-  const result: ReservationRule[] = [];
-  for (const field of reservationFields) {
-    const criterion = value[field];
-    if (!isRecord(criterion) || !Array.isArray(criterion.values)) {
-      throw new Error(
-        `Reservation setting ${field} must include a values array.`,
-      );
-    }
-    const valueOperator = parseOperator(
-      criterion.operator,
-      `${field} operator`,
-    );
-    if (criterion.values.length > MAX_VALUES_PER_RULE) {
-      throw new Error(
-        `Reservation setting ${field} supports at most ${MAX_VALUES_PER_RULE} values.`,
-      );
-    }
-    const values = criterion.values.map((item, index) => {
-      if (typeof item !== 'string') {
-        throw new Error(
-          `Reservation setting ${field} value ${index + 1} must be a string.`,
-        );
-      }
-      const trimmed = item.trim();
-      if (!trimmed || trimmed.length > MAX_VALUE_LENGTH) {
-        throw new Error(
-          `Reservation setting ${field} values must contain 1-${MAX_VALUE_LENGTH} characters.`,
-        );
-      }
-      return trimmed;
-    });
-    if (values.length > 0) {
-      result.push({
-        type: 'rule',
-        id: `legacy-${field}`,
-        field,
-        join: 'and',
-        negate: false,
-        valueOperator,
-        values,
-      });
-    }
-  }
-  return result;
 }
 
 function parseId(value: unknown, name: string, ids: Set<string>): string {
@@ -287,10 +222,7 @@ function evaluateNode(
       ? actual.includes(expected)
       : actual === expected;
   });
-  const result =
-    node.valueOperator === 'and'
-      ? matches.every(Boolean)
-      : matches.some(Boolean);
+  const result = matches.some(Boolean);
   return node.negate ? !result : result;
 }
 

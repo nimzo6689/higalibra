@@ -16,6 +16,7 @@
     "test": "pnpm build && node --experimental-strip-types --test test/*.test.mjs",
     "format": "prettier --ignore-path ../../.prettierignore --write .",
     "format:check": "prettier --ignore-path ../../.prettierignore --check .",
+    "generate:new-books": "pnpm build && node --env-file=.env generate-new-books.mjs",
     "repl": "pnpm build && node --env-file=.env --interactive --experimental-repl-await --import ./repl.mjs"
   },
   "dependencies": {

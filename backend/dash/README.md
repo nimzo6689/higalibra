@@ -74,7 +74,6 @@ POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudF
         "field": "publishers",
         "join": "and",
         "negate": false,
-        "valueOperator": "or",
         "values": ["集英社", "小学館"]
       },
       {
@@ -88,7 +87,6 @@ POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudF
             "field": "authors",
             "join": "and",
             "negate": true,
-            "valueOperator": "or",
             "values": ["佐藤太郎"]
           },
           {
@@ -97,7 +95,6 @@ POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudF
             "field": "titleKeywords",
             "join": "or",
             "negate": false,
-            "valueOperator": "or",
             "values": ["小説"]
           }
         ]
@@ -108,10 +105,9 @@ POST 本文の SHA-256 を `x-amz-content-sha256` ヘッダーに含め、CloudF
 ```
 
 条件は最大60件、各条件は最大20個のキーワードを持ち、各キーワードは1〜100文字です。
-空の値やキーワードがない条件は保存時に除外します。以前の `publishers` / `authors` /
-`titleKeywords` 形式の保存データも読み込み時に同等の条件式へ変換します。設定値がすべて
-空の場合、その利用者は対象外です。Dash 実行ロールは設定オブジェクトの読み取り権限、
-設定 API ロールは同じプレフィックス内の読み書き権限を持ちます。
+空の値やキーワードがない条件は保存時に除外します。各条件内の値はすべて OR で照合します。
+設定値がすべて空の場合、その利用者は対象外です。Dash 実行ロールは設定オブジェクトの
+読み取り権限、設定 API ロールは同じプレフィックス内の読み書き権限を持ちます。
 
 ## ローカル REPL
 
@@ -134,6 +130,18 @@ pnpm repl
 `await runDash({ dryRun: false })` を実行してください。これは図書館アカウントに変更を
 加えます。Push はローカルプレビューのみです。`.env`、設定ファイル、履歴ファイルは Git
 管理対象外です。
+
+## 新着書籍データのローカル生成
+
+図書館アカウントを設定した `.env` がある状態で、次のコマンドを実行します。
+
+```sh
+pnpm generate:new-books
+```
+
+取得した新着書籍を `dash_new_books.json` に保存します。S3 の取得処理と同様に、
+既存ファイルがあればそこに含まれる書籍より新しい分を先頭に追加します。出力先は
+`DASH_NEW_BOOKS_PATH` で変更できます。このコマンドは S3 へのアップロードを行いません。
 
 ## 開発コマンド
 
