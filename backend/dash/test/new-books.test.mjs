@@ -62,7 +62,7 @@ test('harvests only books before the first registered book and merges the S3 lis
     },
   );
 
-  assert.deepEqual(calls, ['span:4', 'page:1', 'page:2']);
+  assert.deepEqual(calls, ['span:1', 'page:1', 'page:2']);
   assert.deepEqual(pages, [1, 2]);
   assert.deepEqual(delays, [NEW_BOOKS_PAGE_DELAY_MS]);
   assert.equal(result.updatedAt, '2026-11-06T12:00:00.000Z');
