@@ -17,7 +17,26 @@ function rule(id, field, values, join = 'and') {
   };
 }
 
-function makeHandler() {
+function makeHandler(books = [
+  {
+    bookNo: 'book-1',
+    title: 'Matching Story',
+    author: 'Writer',
+    publisher: 'Publisher',
+    acceptanceDate: null,
+    publishedOn: null,
+    availabilityStatus: '○ 在架あり',
+  },
+  {
+    bookNo: 'book-2',
+    title: 'Unmatched Story',
+    author: 'Other',
+    publisher: 'Other',
+    acceptanceDate: null,
+    publishedOn: null,
+    availabilityStatus: '× 在架なし',
+  },
+]) {
   const state = { settings: new Map(), writes: [] };
   const handler = createReservationSettingsHandler({
     async loadEmailCardNumbers() {
@@ -34,26 +53,7 @@ function makeHandler() {
       return {
         version: 1,
         updatedAt: '2026-11-06T12:00:00.000Z',
-        books: [
-          {
-            bookNo: 'book-1',
-            title: 'Matching Story',
-            author: 'Writer',
-            publisher: 'Publisher',
-            acceptanceDate: null,
-            publishedOn: null,
-            availabilityStatus: '○ 在架あり',
-          },
-          {
-            bookNo: 'book-2',
-            title: 'Unmatched Story',
-            author: 'Other',
-            publisher: 'Other',
-            acceptanceDate: null,
-            publishedOn: null,
-            availabilityStatus: '× 在架なし',
-          },
-        ],
+        books,
       };
     },
   });
@@ -204,6 +204,38 @@ test('tests unsaved settings against harvested books without saving them', async
     ],
   });
   assert.equal(state.writes.length, 0);
+});
+
+test('tests settings against at most the 50 newest books', async () => {
+  const books = Array.from({ length: 51 }, (_, index) => ({
+    bookNo: `book-${index + 1}`,
+    title: `Story ${index + 1}`,
+    author: 'Writer',
+    publisher: 'Publisher',
+    acceptanceDate: null,
+    publishedOn: null,
+    availabilityStatus: '○ 在架あり',
+  }));
+  const { handler } = makeHandler(books);
+  const result = await handler(
+    event('POST', {
+      path: '/reservation-settings/test',
+      email: 'member@example.com',
+      body: JSON.stringify({
+        settings: {
+          expression: {
+            children: [rule('author-1', 'authors', ['Writer'])],
+          },
+        },
+      }),
+    }),
+  );
+
+  assert.equal(result.statusCode, 200);
+  const returnedBooks = JSON.parse(result.body).books;
+  assert.equal(returnedBooks.length, 50);
+  assert.equal(returnedBooks[0].bookNo, 'book-1');
+  assert.equal(returnedBooks.at(-1).bookNo, 'book-50');
 });
 
 test('limits the test route to authenticated POST requests', async () => {

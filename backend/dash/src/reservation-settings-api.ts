@@ -19,6 +19,8 @@ import type { ReservationSettings } from './settings.js';
 import { S3NewBooksStore } from './new-books.js';
 import type { NewBooksSnapshot } from './new-books.js';
 
+const MAX_RESERVATION_SETTINGS_TEST_BOOKS = 50;
+
 interface ReservationSettingsApiDependencies {
   loadEmailCardNumbers(): Promise<ReadonlyMap<string, string>>;
   loadSettings(cardNo: string): Promise<ReservationSettings>;
@@ -98,9 +100,9 @@ export function createReservationSettingsHandler(
       const snapshot = await dependencies.loadNewBooks();
       return response(200, {
         updatedAt: snapshot.updatedAt,
-        books: snapshot.books.filter((book) =>
-          matchesReservationSettings(book, settings),
-        ),
+        books: snapshot.books
+          .slice(0, MAX_RESERVATION_SETTINGS_TEST_BOOKS)
+          .filter((book) => matchesReservationSettings(book, settings)),
       });
     }
     await dependencies.saveSettings(cardNo, settings);
