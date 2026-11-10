@@ -7,6 +7,7 @@ export type {
   ImageUrlCache,
   LibraryScraper,
   NewBook,
+  NewBooksSpan,
   ReservedBook,
   ScraperOptions,
   UserStatus,

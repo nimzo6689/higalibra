@@ -8,7 +8,7 @@ import {
   parseUserStatus,
 } from './parsers.js';
 import { LibrarySession } from './session.js';
-import type { LibraryScraper, ScraperOptions } from './types.js';
+import type { LibraryScraper, NewBooksSpan, ScraperOptions } from './types.js';
 
 export class Scraper implements LibraryScraper {
   private readonly session: LibrarySession;
@@ -82,10 +82,36 @@ export class Scraper implements LibraryScraper {
 
   async getNewBooks(page = 1) {
     return parseNewBooks(
-      await this.session.getHtml(
-        `/OPWNEWBOOK.CSP?WRTCOUNT=100&PAGE=${page}`,
-      ),
+      await this.session.getHtml(`/OPWNEWBOOK.CSP?WRTCOUNT=100&PAGE=${page}`),
     );
+  }
+
+  async setNewBooksSpan(span: NewBooksSpan): Promise<void> {
+    if (![1, 2, 3, 4].includes(span)) {
+      throw new Error(`Unsupported new-books span: ${span}`);
+    }
+
+    const response = await this.session.post('/OPWNEWBOOK.CSP', {
+      DB: 'LIB',
+      SID: await this.session.getSid(),
+      MODE: '1',
+      LIB: '',
+      HOLD: 'NOHOLD',
+      SORT: '-D',
+      PAGE: '',
+      PID2: 'OPWNEWBOOK',
+      SK: '*',
+      SPAN: String(span),
+      CHGIMG: '0',
+      WRTCOUNT: '100',
+    });
+    await this.session.discard(response);
+
+    if (response.status !== 200) {
+      throw new Error(
+        `Setting the new-books span failed (${response.status} ${response.statusText}).`,
+      );
+    }
   }
 
   async extendLoan(barcode: string): Promise<Response> {

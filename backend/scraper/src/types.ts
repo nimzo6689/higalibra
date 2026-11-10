@@ -54,9 +54,12 @@ export interface NewBook {
   availabilityStatus: AvailabilityStatus;
 }
 
+export type NewBooksSpan = 1 | 2 | 3 | 4;
+
 export interface LibraryScraper {
   getUserStatus(): Promise<UserStatus>;
   getNewBooks(page?: number): Promise<NewBook[]>;
+  setNewBooksSpan(span: NewBooksSpan): Promise<void>;
   extendLoan(barcode: string): Promise<Response>;
   reserveBook(bookNo: string): Promise<Response>;
 }

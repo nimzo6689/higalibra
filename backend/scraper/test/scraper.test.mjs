@@ -178,3 +178,85 @@ test('getNewBooks returns null when publishedOn cannot be parsed', async () => {
     globalThis.fetch = originalFetch;
   }
 });
+
+test('setNewBooksSpan posts the selected period and accepts only HTTP 200', async () => {
+  const requests = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input);
+    requests.push({ url, init });
+    if (url.pathname.endsWith('/OPWNEWBOOK.CSP') && init?.method === 'POST') {
+      return new Response('<html>設定完了</html>');
+    }
+    return new Response('', {
+      headers: { 'set-cookie': 'SID=session; Path=/' },
+    });
+  };
+
+  try {
+    const scraper = createScraper({
+      baseUrl: 'https://library.example/OPW',
+      cardNo: 'card',
+      password: 'password',
+    });
+
+    await scraper.setNewBooksSpan(4);
+
+    const request = requests.find(
+      ({ url, init }) =>
+        url.pathname.endsWith('/OPWNEWBOOK.CSP') && init?.method === 'POST',
+    );
+    assert.ok(request);
+    assert.deepEqual(
+      Object.fromEntries(new URLSearchParams(request.init.body)),
+      {
+        DB: 'LIB',
+        SID: 'session',
+        MODE: '1',
+        LIB: '',
+        HOLD: 'NOHOLD',
+        SORT: '-D',
+        PAGE: '',
+        PID2: 'OPWNEWBOOK',
+        SK: '*',
+        SPAN: '4',
+        CHGIMG: '0',
+        WRTCOUNT: '100',
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('setNewBooksSpan rejects non-200 responses and unsupported spans', async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (input, init) => {
+    const url = new URL(input);
+    if (url.pathname.endsWith('/OPWNEWBOOK.CSP') && init?.method === 'POST') {
+      return new Response('', { status: 302 });
+    }
+    return new Response('', {
+      headers: { 'set-cookie': 'SID=session; Path=/' },
+    });
+  };
+
+  try {
+    const scraper = createScraper({
+      baseUrl: 'https://library.example/OPW',
+      cardNo: 'card',
+      password: 'password',
+    });
+
+    await assert.rejects(
+      scraper.setNewBooksSpan(1),
+      /Setting the new-books span failed \(302/,
+    );
+    await assert.rejects(
+      scraper.setNewBooksSpan(5),
+      /Unsupported new-books span: 5/,
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

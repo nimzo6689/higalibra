@@ -32,6 +32,10 @@ const pageTwoBooks = await scraper.getNewBooks(2);
 `getNewBooks(page)` で新着本一覧のページ番号を指定できます。引数を省略した場合は
 `PAGE=1` で取得します。
 
+`setNewBooksSpan(span)` で新着本の取得対象期間を設定できます。`span` は必須で、
+`1`（1か月）、`2`（2か月）、`3`（3か月）、`4`（12か月）を指定します。
+設定リクエストの応答が HTTP 200 以外の場合はエラーになります。
+
 `extendLoan(barcode)` と `reserveBook(bookNo)` は、図書館アカウントに変更を加える
 処理です。実際にその操作を行う意図がある場合にだけ実行してください。
 
