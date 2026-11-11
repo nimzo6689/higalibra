@@ -89,13 +89,13 @@ function dependencies({ previous = null, status, afterExtension, send }) {
   return { deps, saved, notices, extensionCalls };
 }
 
-test('extends eligible loans and alerts for loans that cannot be extended', async () => {
+test('extends loans with re-loan status regardless of their return date', async () => {
   const beforeExtension = {
     borrowedBooks: [
       borrowedBook({
         barcode: 'extendable',
         status: '再貸出',
-        returnOn: '2026-10-29',
+        returnOn: '2026-11-02',
       }),
       borrowedBook({
         barcode: 'not-extendable',

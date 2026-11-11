@@ -15,7 +15,7 @@ import type {
   UserStatusSnapshot,
 } from './types.js';
 
-const DEFAULT_EXTENSION_WINDOW_DAYS = 3;
+const RETURN_NOTICE_WINDOW_DAYS = 3;
 
 export async function runKeeper(
   secret: KeeperSecret,
@@ -25,11 +25,6 @@ export async function runKeeper(
   const today =
     dependencies.today ??
     Temporal.PlainDate.from(now().toISOString().slice(0, 10));
-  const extensionWindowDays =
-    dependencies.extensionWindowDays ?? DEFAULT_EXTENSION_WINDOW_DAYS;
-  if (!Number.isSafeInteger(extensionWindowDays) || extensionWindowDays < 0) {
-    throw new RangeError('extensionWindowDays must be a non-negative integer.');
-  }
 
   const previous = await dependencies.statusStore.load();
   const previousUsers = new Map(
@@ -50,12 +45,7 @@ export async function runKeeper(
     const extensionAttempts = new Map<string, Temporal.PlainDate>();
 
     for (const book of status.borrowedBooks) {
-      const daysUntilReturn = daysUntil(book.returnOn, today);
-      if (
-        book.status === '再貸出' &&
-        daysUntilReturn >= 0 &&
-        daysUntilReturn <= extensionWindowDays
-      ) {
+      if (book.status === '再貸出') {
         const response = await scraper.extendLoan(book.barcode);
         if (response.status >= 400) {
           throw new Error(
@@ -100,7 +90,6 @@ export async function runKeeper(
         previousUsers.get(user.cardNo)?.borrowedBooks ?? [],
         extendedBarcodes,
         today,
-        extensionWindowDays,
       ),
     );
   }
@@ -218,7 +207,6 @@ function findReturnNotices(
   previous: StoredBorrowedBook[],
   extendedBarcodes: Set<string>,
   today: Temporal.PlainDate,
-  extensionWindowDays: number,
 ): { cardNo: string; notice: PushNotice }[] {
   const previousByBarcode = new Map(
     previous.map((book) => [book.barcode, book]),
@@ -242,7 +230,7 @@ function findReturnNotices(
 
     const returnOn = Temporal.PlainDate.from(book.returnDate);
     const daysUntilReturn = daysUntil(returnOn, today);
-    if (daysUntilReturn > extensionWindowDays) {
+    if (daysUntilReturn > RETURN_NOTICE_WINDOW_DAYS) {
       return [];
     }
 

@@ -85,7 +85,6 @@ export interface KeeperDependencies {
   }): LibraryScraper;
   today?: Temporal.PlainDate;
   now?: () => Date;
-  extensionWindowDays?: number;
 }
 
 export interface KeeperResult {
