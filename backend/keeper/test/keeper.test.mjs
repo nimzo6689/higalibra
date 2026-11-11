@@ -49,6 +49,7 @@ function dependencies({ previous = null, status, afterExtension, send }) {
   const saved = [];
   const notices = [];
   let statusReads = 0;
+  const extensionCalls = [];
   const deps = {
     statusStore: {
       async load() {
@@ -70,7 +71,8 @@ function dependencies({ previous = null, status, afterExtension, send }) {
           statusReads += 1;
           return statusReads === 1 ? status : (afterExtension ?? status);
         },
-        async extendLoan() {
+        async extendLoan(barcode) {
+          extensionCalls.push(barcode);
           return new Response(null, { status: 302 });
         },
         async getNewBooks() {
@@ -84,7 +86,7 @@ function dependencies({ previous = null, status, afterExtension, send }) {
     today,
     now: () => new Date('2026-10-27T09:00:00.000Z'),
   };
-  return { deps, saved, notices };
+  return { deps, saved, notices, extensionCalls };
 }
 
 test('extends eligible loans and alerts for loans that cannot be extended', async () => {
@@ -113,7 +115,7 @@ test('extends eligible loans and alerts for loans that cannot be extended', asyn
       beforeExtension.borrowedBooks[1],
     ],
   };
-  const { deps, saved, notices } = dependencies({
+  const { deps, saved, notices, extensionCalls } = dependencies({
     status: beforeExtension,
     afterExtension,
   });
@@ -126,6 +128,28 @@ test('extends eligible loans and alerts for loans that cannot be extended', asyn
   assert.equal(notices[0].notice.bookTitle, 'not-extendable');
   assert.equal(saved.length, 1);
   assert.equal(saved[0].users[0].borrowedBooks[0].returnDate, '2026-11-12');
+  assert.deepEqual(extensionCalls, ['extendable']);
+});
+
+test('fails when an extension response does not change the return date', async () => {
+  const status = {
+    borrowedBooks: [
+      borrowedBook({
+        barcode: 'extendable',
+        status: '再貸出',
+        returnOn: '2026-10-29',
+      }),
+    ],
+    reservedBooks: [],
+  };
+  const { deps, saved, extensionCalls } = dependencies({ status });
+
+  await assert.rejects(
+    runKeeper(secret, deps),
+    /Loan extension was not reflected.*return date is still 2026-10-29/,
+  );
+  assert.deepEqual(extensionCalls, ['extendable']);
+  assert.equal(saved.length, 0);
 });
 
 test('notifies only when a reservation first becomes held', async () => {

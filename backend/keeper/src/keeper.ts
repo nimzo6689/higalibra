@@ -47,6 +47,7 @@ export async function runKeeper(
     });
     let status = await scraper.getUserStatus();
     const extendedBarcodes = new Set<string>();
+    const extensionAttempts = new Map<string, Temporal.PlainDate>();
 
     for (const book of status.borrowedBooks) {
       const daysUntilReturn = daysUntil(book.returnOn, today);
@@ -61,13 +62,28 @@ export async function runKeeper(
             `Loan extension failed for card ${user.cardNo}, barcode ${book.barcode}: HTTP ${response.status}.`,
           );
         }
-        extendedBarcodes.add(book.barcode);
-        extendedBookCount += 1;
+        extensionAttempts.set(book.barcode, book.returnOn);
       }
     }
 
-    if (extendedBarcodes.size > 0) {
+    if (extensionAttempts.size > 0) {
       status = await scraper.getUserStatus();
+      for (const [barcode, originalReturnOn] of extensionAttempts) {
+        const updatedBook = status.borrowedBooks.find(
+          (book) => book.barcode === barcode,
+        );
+        if (
+          !updatedBook ||
+          Temporal.PlainDate.compare(updatedBook.returnOn, originalReturnOn) <=
+            0
+        ) {
+          throw new Error(
+            `Loan extension was not reflected for card ${user.cardNo}, barcode ${barcode}; the return date is still ${updatedBook?.returnOn.toString() ?? 'unavailable'}.`,
+          );
+        }
+        extendedBarcodes.add(barcode);
+        extendedBookCount += 1;
+      }
     }
 
     const storedUser = toStoredUser(user.cardNo, user.name, status);
